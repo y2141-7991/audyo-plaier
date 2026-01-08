@@ -284,7 +284,6 @@ fn formart_duration(d: Duration) -> String {
 //     Ok(())
 // }
 
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ytb_client = YoutubeClient::default_android();

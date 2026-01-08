@@ -1,11 +1,11 @@
-use std::sync::Arc;
-use thiserror::Error;
 use async_trait::async_trait;
 use reqwest::{
     Client,
     header::{HeaderMap, HeaderValue},
 };
 use serde_json::{Value, json};
+use std::sync::Arc;
+use thiserror::Error;
 
 #[derive(Clone, Debug)]
 struct ClientConfig {
@@ -21,7 +21,7 @@ struct ClientConfig {
 trait ClientStrategy: Send + Sync {
     fn config(&self) -> &ClientConfig;
     fn build_payload(&self, video_id: &str) -> Value;
-    fn build_headers(&self) -> HeaderMap;
+    fn build_headers(&self, base_url: &'static str) -> HeaderMap;
     fn client_name(&self) -> &str;
     fn client_number(&self) -> u32;
 }
@@ -93,7 +93,7 @@ impl ClientStrategy for AndroidClient {
             }
         })
     }
-    fn build_headers(&self) -> HeaderMap {
+    fn build_headers(&self, base_url: &'static str) -> HeaderMap {
         let mut headers = HeaderMap::new();
         headers.insert(
             "User-Agent",
@@ -106,10 +106,7 @@ impl ClientStrategy for AndroidClient {
             "X-Youtube-Client-Version",
             HeaderValue::from_str(&self.client_config.client_version).unwrap(),
         );
-        headers.insert(
-            "Origin",
-            HeaderValue::from_static("https://www.youtube.com"),
-        );
+        headers.insert("Origin", HeaderValue::from_static(base_url));
         headers.insert(
             "Referer",
             HeaderValue::from_static("https://www.youtube.com/"),
@@ -130,7 +127,9 @@ pub struct YoutubeClient {
 }
 
 impl YoutubeClient {
-    const YOUTUBE_URL: &'static str = "https://www.youtube.com/youtubei/v1/player";
+    const API_YOUTUBE_URL: &'static str = "https://www.youtube.com/youtubei/v1/player";
+    const YOUTUBE_URL: &'static str = "https://www.youtube.com";
+
     fn new(strategy: Arc<dyn ClientStrategy>) -> Self {
         let client = Client::builder()
             .timeout(std::time::Duration::from_secs(30))
@@ -148,11 +147,13 @@ impl YoutubeClient {
         self.strategy = strategy
     }
     pub async fn get_video_info(&self, video_id: &str) -> Result<()> {
-        let headers = self.strategy.build_headers();
+        let headers = self.strategy.build_headers(Self::YOUTUBE_URL);
         let payload = self.strategy.build_payload(video_id);
 
-        let response = self.http
-            .post(Self::YOUTUBE_URL).query(&[("prettyPrint", "false")])
+        let response = self
+            .http
+            .post(Self::API_YOUTUBE_URL)
+            .query(&[("prettyPrint", "false")])
             .headers(headers)
             .json(&payload)
             .send()
@@ -165,11 +166,6 @@ impl YoutubeClient {
         Ok(())
     }
 }
-
-
-
-
-
 
 #[derive(Error, Debug)]
 pub enum YtdlError {
