@@ -4,9 +4,6 @@ use ratatui::widgets::ListState;
 
 use crate::{AudioFolder, AudioService, Focus};
 
-
-
-
 pub struct App<'a> {
     pub folder_state: ListState,
 

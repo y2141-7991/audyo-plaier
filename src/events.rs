@@ -1,9 +1,6 @@
-use crossterm::{
-    event::{self, Event as CEvent, KeyCode}
-};
+use crossterm::event::{self, Event as CEvent, KeyCode};
 
-use crate::{app::App, audyo::service::AudioEvent, Focus};
-
+use crate::{Focus, app::App, audyo::service::AudioEvent};
 
 impl App<'_> {
     pub fn handle_event(&mut self) -> Result<(), std::io::Error> {
@@ -65,12 +62,12 @@ impl App<'_> {
                                     "◀◀" => self.audio_service.speed_down(),
                                     "+↪5s" => self.audio_service.seek_forward(),
                                     "-5s↩" => self.audio_service.seek_backward(),
-                                    _ => {},
+                                    _ => {}
                                 }
                             }
                         }
                     }
-                    _ => {},
+                    _ => {}
                 }
             }
         }

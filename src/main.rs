@@ -25,8 +25,10 @@ use audyo::service::AudioService;
 mod app;
 use app::App;
 
-mod events;
+use crate::downloader::client::YoutubeClient;
+
 mod downloader;
+mod events;
 
 const CUSTOM_LABEL_COLOR: Color = tailwind::CYAN.c800;
 const GAUGE3_COLOR: Color = tailwind::BLUE.c800;
@@ -42,8 +44,6 @@ enum ButtonStates {
     Forward,
     Backward,
 }
-
-
 
 #[derive(Debug)]
 struct AudioFolder<'a> {
@@ -90,10 +90,7 @@ enum Focus {
     Popup,
 }
 
-
-
 impl<'a> App<'a> {
-
     fn next_folder(&mut self) {
         let i = match self.folder_state.selected() {
             Some(i) => (i + 1) % self.audio_folder.files.len(),
@@ -128,8 +125,6 @@ impl<'a> App<'a> {
         };
     }
 }
-
-
 
 impl App<'_> {
     fn render_main_page(&mut self, frame: &mut ratatui::Frame) {
@@ -265,26 +260,34 @@ fn formart_duration(d: Duration) -> String {
     format!("{:02}:{:02}", minutes, seconds)
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+// fn main() -> Result<(), Box<dyn Error>> {
+//     enable_raw_mode()?;
+//     let mut stdout = io::stdout();
+//     execute!(stdout, EnterAlternateScreen)?;
+//     let backend = CrosstermBackend::new(stdout);
+//     let mut terminal = Terminal::new(backend)?;
 
-    let mut app = App::new();
+//     let mut app = App::new();
 
-    while !app.should_quit {
-        terminal.draw(|f| {
-            app.render_main_page(f);
-        })?;
+//     while !app.should_quit {
+//         terminal.draw(|f| {
+//             app.render_main_page(f);
+//         })?;
 
-        app.handle_event()?;
-    }
+//         app.handle_event()?;
+//     }
 
-    disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
-    terminal.show_cursor()?;
+//     disable_raw_mode()?;
+//     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+//     terminal.show_cursor()?;
 
+//     Ok(())
+// }
+
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let ytb_client = YoutubeClient::default_android();
+    ytb_client.get_video_info("7e8nNMOyQKU").await?;
     Ok(())
 }
