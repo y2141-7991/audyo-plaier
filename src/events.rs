@@ -65,12 +65,12 @@ impl App<'_> {
                                     "◀◀" => self.audio_service.speed_down(),
                                     "+↪5s" => self.audio_service.seek_forward(),
                                     "-5s↩" => self.audio_service.seek_backward(),
-                                    _ => println!(""),
+                                    _ => {},
                                 }
                             }
                         }
                     }
-                    _ => eprintln!("Key is not handled {:?}", key_event),
+                    _ => {},
                 }
             }
         }

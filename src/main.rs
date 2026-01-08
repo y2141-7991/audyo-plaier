@@ -21,9 +21,12 @@ use ratatui::{
 
 mod audyo;
 use audyo::service::AudioService;
+
 mod app;
 use app::App;
+
 mod events;
+mod downloader;
 
 const CUSTOM_LABEL_COLOR: Color = tailwind::CYAN.c800;
 const GAUGE3_COLOR: Color = tailwind::BLUE.c800;
