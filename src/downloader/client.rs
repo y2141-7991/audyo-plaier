@@ -3,6 +3,7 @@ use reqwest::{
     Client,
     header::{HeaderMap, HeaderValue},
 };
+use serde::Deserialize;
 use serde_json::{Value, json};
 use std::sync::Arc;
 use thiserror::Error;
@@ -146,7 +147,7 @@ impl YoutubeClient {
     fn set_strategy(&mut self, strategy: Arc<dyn ClientStrategy>) {
         self.strategy = strategy
     }
-    pub async fn get_video_info(&self, video_id: &str) -> Result<()> {
+    pub async fn get_video_info(&self, video_id: &str) -> Result<VideoInfo> {
         let headers = self.strategy.build_headers(Self::YOUTUBE_URL);
         let payload = self.strategy.build_payload(video_id);
 
@@ -159,12 +160,102 @@ impl YoutubeClient {
             .send()
             .await?;
 
-        // response.error_for_status()?;
-        let json_ = response.json::<Value>().await;
+        response.error_for_status_ref()?;
+        let player_response = response.json::<PlayerResponse>().await?;
 
-        println!("{:?}", json_);
-        Ok(())
+        self.parse_player_payload(player_response, video_id)
     }
+
+    fn parse_player_payload(
+        &self,
+        player_response: PlayerResponse,
+        video_id: &str,
+    ) -> Result<VideoInfo> {
+        let details = player_response
+            .video_details
+            .ok_or_else(|| YtdlError::VideoNotFound(video_id.to_string()))?;
+        let streaming = player_response
+            .streaming_data
+            .ok_or(YtdlError::NoSuitableFormat)?;
+        let mut formats = Vec::new();
+        if let Some(regular) = streaming.formats {
+            formats.extend(regular);
+        }
+        Ok(VideoInfo {
+            video_id: details.video_id,
+            title: details.title,
+            author: details.author,
+            length_seconds: details.length_seconds.parse::<u32>().unwrap_or(0),
+            formats: formats,
+        })
+    }
+    pub fn extract_video_id(url: &str) -> Option<String> {
+        let patterns = [
+            (r"youtube\.com/watch\?.*v=([a-zA-Z0-9_-]{11})", 1),
+            (r"youtu\.be/([a-zA-Z0-9_-]{11})", 1),
+            (r"youtube\.com/embed/([a-zA-Z0-9_-]{11})", 1),
+            (r"youtube\.com/v/([a-zA-Z0-9_-]{11})", 1),
+            (r"youtube\.com/shorts/([a-zA-Z0-9_-]{11})", 1),
+        ];
+
+        for (pattern, group) in patterns {
+            if let Ok(re) = regex_lite::Regex::new(pattern) {
+                if let Some(caps) = re.captures(url) {
+                    if let Some(m) = caps.get(group) {
+                        return Some(m.as_str().to_string());
+                    }
+                }
+            }
+        }
+        None
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct VideoInfo {
+    video_id: String,
+    title: String,
+    author: String,
+    length_seconds: u32,
+    formats: Vec<FormatResponse>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct PlayerResponse {
+    video_details: Option<VideoDetails>,
+    streaming_data: Option<StreamingData>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct VideoDetails {
+    video_id: String,
+    author: String,
+    length_seconds: String,
+    title: String,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct StreamingData {
+    formats: Option<Vec<FormatResponse>>,
+    expires_in_seconds: String,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct FormatResponse {
+    itag: Option<u32>,
+    url: Option<String>,
+    approx_duration_ms: Option<String>,
+    audio_channels: Option<u8>,
+    audio_quality: Option<String>,
+    audio_sample_rate: Option<String>,
+    average_bitrate: Option<u32>,
+    bitrate: Option<u32>,
+    mime_type: Option<String>,
+    quality: Option<String>,
 }
 
 #[derive(Error, Debug)]
