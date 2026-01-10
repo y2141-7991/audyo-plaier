@@ -1,4 +1,4 @@
-use std::{error::Error, fs::File, io, time::Duration};
+use std::{error::Error, fs::File, io, path::{Path, PathBuf}, time::Duration};
 
 use crossterm::{
     event::{self, Event as CEvent, KeyCode},
@@ -25,7 +25,7 @@ use audyo::service::AudioService;
 mod app;
 use app::App;
 
-use crate::downloader::client::YoutubeClient;
+use crate::downloader::{client::YoutubeClient, media_downloader::{Downloader, generate_filename}};
 
 mod downloader;
 mod events;
@@ -284,10 +284,24 @@ fn formart_duration(d: Duration) -> String {
 //     Ok(())
 // }
 
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ytb_client = YoutubeClient::default_android();
     let a = ytb_client.get_video_info("7e8nNMOyQKU").await?;
-    println!("{:#?}", a);
+    let downloader = Downloader::new();
+    let filename = generate_filename(&a.title, "m4a");
+
+    let output_dir: PathBuf = if let Some(home) = dirs::home_dir() {
+        home.join(".audyo_player")
+    } else {
+        PathBuf::from("./output_dir")
+    };
+
+    let output_path = output_dir.join("audio").join(filename);
+    for format in a.formats {
+        downloader.download(&format, &output_path).await?;
+    }
+
     Ok(())
 }

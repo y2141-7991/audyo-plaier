@@ -213,11 +213,11 @@ impl YoutubeClient {
 
 #[derive(Deserialize, Debug)]
 pub struct VideoInfo {
-    video_id: String,
-    title: String,
-    author: String,
-    length_seconds: u32,
-    formats: Vec<FormatResponse>,
+    pub video_id: String,
+    pub title: String,
+    pub author: String,
+    pub length_seconds: u32,
+    pub formats: Vec<FormatResponse>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -245,9 +245,9 @@ struct StreamingData {
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct FormatResponse {
+pub struct FormatResponse {
     itag: Option<u32>,
-    url: Option<String>,
+    pub url: Option<String>,
     approx_duration_ms: Option<String>,
     audio_channels: Option<u8>,
     audio_quality: Option<String>,
