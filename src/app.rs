@@ -14,6 +14,7 @@ pub struct App<'a> {
     pub focus: Focus,
     pub tick_rate: Duration,
     pub should_quit: bool,
+    pub text: String
 }
 
 impl App<'_> {
@@ -34,6 +35,7 @@ impl App<'_> {
             focus: Focus::FolderList,
             tick_rate: Duration::from_millis(200),
             should_quit: false,
+            text: String::new()
         }
     }
 }

@@ -71,6 +71,12 @@ impl App<'_> {
                     _ => {}
                 }
             }
+            else if self.focus == Focus::Popup {
+                match event::read()? {
+                    CEvent::Paste(pasted) => {  self.text += &pasted; println!("{}", pasted) }
+                    _ => {}
+                }
+            }
         }
 
         Ok(())

@@ -240,7 +240,7 @@ impl App<'_> {
             .title("Download")
             .style(Style::default().fg(Color::Yellow));
 
-        let paragraph = Paragraph::new("Test_popup")
+        let paragraph = Paragraph::new(self.text.as_str())
             .style(Style::default().fg(Color::White))
             .block(block);
 
