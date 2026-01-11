@@ -1,11 +1,14 @@
 use std::path::Path;
 
-use crate::downloader::{client::YoutubeClient, media_downloader::{Downloader, generate_filename}};
+use crate::downloader::{
+    client::YoutubeClient,
+    media_downloader::{Downloader, generate_filename},
+};
 
 pub mod client;
 mod constant;
+pub mod facade;
 pub mod media_downloader;
-
 
 pub struct YoutubeFacade {
     client: YoutubeClient,
@@ -23,7 +26,6 @@ pub struct YoutubeFacade {
 //     for format in a.formats {
 //         downloader.download(&format, &output_path).await?;
 //     }
-    
 
 //     Ok(())
 // }

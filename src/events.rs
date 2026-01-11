@@ -17,6 +17,7 @@ impl App<'_> {
                     }
                     KeyCode::Char('s') => {
                         if self.focus == Focus::Popup {
+                            
                             self.focus = Focus::FolderList
                         } else {
                             self.focus = Focus::Popup

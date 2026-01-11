@@ -8,7 +8,7 @@ pub struct App<'a> {
     pub folder_state: ListState,
 
     pub audio_service: AudioService,
-    pub audio_folder: AudioFolder<'a>,
+    pub audio_folder: AudioFolder,
     pub buttons: Vec<&'a str>,
     pub button_index: usize,
     pub focus: Focus,
@@ -17,9 +17,8 @@ pub struct App<'a> {
 }
 
 impl App<'_> {
-    pub fn new() -> Self {
-        let path = "sample_mp3/*";
-        let mut audio_folder = AudioFolder::new(path);
+    pub fn new(path: String) -> Self {
+        let mut audio_folder = AudioFolder::new(format!("{}/*", path.clone()));
         audio_folder.load_mp3_file();
 
         let mut folder_state = ListState::default();

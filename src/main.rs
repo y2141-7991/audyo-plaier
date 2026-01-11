@@ -1,4 +1,8 @@
-use std::{error::Error, fs::File, io, path::{Path, PathBuf}, time::Duration};
+use std::{
+    error::Error,
+    io,
+    time::Duration,
+};
 
 use crossterm::{
     event::{self, Event as CEvent, KeyCode},
@@ -25,7 +29,10 @@ use audyo::service::AudioService;
 mod app;
 use app::App;
 
-use crate::downloader::{client::YoutubeClient, media_downloader::{Downloader, generate_filename}};
+use crate::downloader::{
+    facade::YoutubeFacade,
+};
+
 
 mod downloader;
 mod events;
@@ -46,13 +53,13 @@ enum ButtonStates {
 }
 
 #[derive(Debug)]
-struct AudioFolder<'a> {
-    path: &'a str,
+struct AudioFolder {
+    path: String,
     files: Vec<String>,
 }
 
-impl AudioFolder<'_> {
-    fn new(path: &'static str) -> Self {
+impl AudioFolder {
+    fn new(path: String) -> Self {
         Self {
             path: path,
             files: Vec::new(),
@@ -230,7 +237,7 @@ impl App<'_> {
     fn render_search_box(&mut self, frame: &mut ratatui::Frame) {
         let block = Block::default()
             .borders(Borders::ALL)
-            .title("Search")
+            .title("Download")
             .style(Style::default().fg(Color::Yellow));
 
         let paragraph = Paragraph::new("Test_popup")
@@ -260,48 +267,30 @@ fn formart_duration(d: Duration) -> String {
     format!("{:02}:{:02}", minutes, seconds)
 }
 
-// fn main() -> Result<(), Box<dyn Error>> {
-//     enable_raw_mode()?;
-//     let mut stdout = io::stdout();
-//     execute!(stdout, EnterAlternateScreen)?;
-//     let backend = CrosstermBackend::new(stdout);
-//     let mut terminal = Terminal::new(backend)?;
-
-//     let mut app = App::new();
-
-//     while !app.should_quit {
-//         terminal.draw(|f| {
-//             app.render_main_page(f);
-//         })?;
-
-//         app.handle_event()?;
-//     }
-
-//     disable_raw_mode()?;
-//     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
-//     terminal.show_cursor()?;
-
-//     Ok(())
-// }
-
-
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let ytb_client = YoutubeClient::default_android();
-    let a = ytb_client.get_video_info("7e8nNMOyQKU").await?;
-    let downloader = Downloader::new();
-    let filename = generate_filename(&a.title, "m4a");
+async fn main() -> Result<(), Box<dyn Error>> {
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
 
-    let output_dir: PathBuf = if let Some(home) = dirs::home_dir() {
-        home.join(".audyo_player")
-    } else {
-        PathBuf::from("./output_dir")
-    };
+    let ytb_facade = YoutubeFacade::new();
+    // ytb_facade.download_audio("EdkLBDaxKd8").await?;
 
-    let output_path = output_dir.join("audio").join(filename);
-    for format in a.formats {
-        downloader.download(&format, &output_path).await?;
+    let mut app = App::new(ytb_facade.output_dir.display().to_string());
+
+    while !app.should_quit {
+        terminal.draw(|f| {
+            app.render_main_page(f);
+        })?;
+
+        app.handle_event()?;
     }
+
+    disable_raw_mode()?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    terminal.show_cursor()?;
 
     Ok(())
 }

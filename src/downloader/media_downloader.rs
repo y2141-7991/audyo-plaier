@@ -1,10 +1,12 @@
-
 use std::path::{Path, PathBuf};
 
-use reqwest::{Client, header::{HeaderMap, HeaderValue, REFERER, USER_AGENT}};
-use futures_util::StreamExt;
-use tokio::fs::File;
 use crate::downloader::client::{FormatResponse, Result, YtdlError};
+use futures_util::StreamExt;
+use reqwest::{
+    Client,
+    header::{HeaderMap, HeaderValue, REFERER, USER_AGENT},
+};
+use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
 #[derive(Debug, Clone)]
@@ -65,20 +67,29 @@ impl Downloader {
             download_config,
         }
     }
-    pub async fn download(&self, format_response: &FormatResponse, output_path: &Path) -> Result<PathBuf> {
-        let url = format_response.url.as_ref().ok_or(YtdlError::FormatNotAvailable(18))?; 
+    pub async fn download(
+        &self,
+        format_response: &FormatResponse,
+        output_path: &Path,
+    ) -> Result<PathBuf> {
+        let url = format_response
+            .url
+            .as_ref()
+            .ok_or(YtdlError::FormatNotAvailable(18))?;
         self.download_url(url, output_path).await
     }
-    async fn download_url(&self, url: &str, output_path: &Path) -> Result<PathBuf>{
+    async fn download_url(&self, url: &str, output_path: &Path) -> Result<PathBuf> {
         if let Some(parent) = output_path.parent() {
             tokio::fs::create_dir_all(parent).await?;
         }
         let mut headers = HeaderMap::new();
-        headers.insert(USER_AGENT, HeaderValue::from_str(&self.download_config.user_agent).unwrap());
+        headers.insert(
+            USER_AGENT,
+            HeaderValue::from_str(&self.download_config.user_agent).unwrap(),
+        );
         headers.insert(REFERER, HeaderValue::from_static("https://www.youtube.com"));
 
         let response = self.client.get(url).headers(headers).send().await?;
-
 
         response.error_for_status_ref()?;
         let mut file = File::create(output_path).await?;
@@ -95,9 +106,9 @@ impl Downloader {
     }
 }
 
-
 fn sanitize_filename(filename: &str) -> String {
-    filename.chars()
+    filename
+        .chars()
         .map(|c| match c {
             '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
             c if c.is_control() => '_',
