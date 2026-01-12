@@ -5,8 +5,9 @@ use crate::{Focus, app::App, audyo::service::AudioEvent};
 impl App<'_> {
     pub fn handle_event(&mut self) -> Result<(), std::io::Error> {
         if event::poll(self.tick_rate)? {
-            if let CEvent::Key(key_event) = event::read()? {
-                match key_event.code {
+            let event = event::read()?;
+            match event {
+                CEvent::Key(key_event) => match key_event.code {
                     KeyCode::Char('q') => self.should_quit = true,
                     KeyCode::Tab => {
                         self.focus = if self.focus == Focus::Buttons {
@@ -17,8 +18,8 @@ impl App<'_> {
                     }
                     KeyCode::Char('s') => {
                         if self.focus == Focus::Popup {
-                            
-                            self.focus = Focus::FolderList
+                            self.focus = Focus::FolderList;
+                            self.text.clear();
                         } else {
                             self.focus = Focus::Popup
                         }
@@ -69,13 +70,11 @@ impl App<'_> {
                         }
                     }
                     _ => {}
+                },
+                CEvent::Paste(pasted) if self.focus == Focus::Popup  => {
+                    self.text.content.push_str(&pasted);
                 }
-            }
-            else if self.focus == Focus::Popup {
-                match event::read()? {
-                    CEvent::Paste(pasted) => {  self.text += &pasted; println!("{}", pasted) }
-                    _ => {}
-                }
+                _ => {}
             }
         }
 

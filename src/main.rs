@@ -1,11 +1,7 @@
-use std::{
-    error::Error,
-    io,
-    time::Duration,
-};
+use std::{error::Error, io, time::Duration};
 
 use crossterm::{
-    event::{self, Event as CEvent, KeyCode},
+    event::{self, EnableBracketedPaste, Event as CEvent, KeyCode},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
@@ -29,10 +25,7 @@ use audyo::service::AudioService;
 mod app;
 use app::App;
 
-use crate::downloader::{
-    facade::YoutubeFacade,
-};
-
+use crate::downloader::facade::YoutubeFacade;
 
 mod downloader;
 mod events;
@@ -90,7 +83,7 @@ impl AudioFolder {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 enum Focus {
     FolderList,
     Buttons,
@@ -235,16 +228,17 @@ impl App<'_> {
     }
 
     fn render_search_box(&mut self, frame: &mut ratatui::Frame) {
+        let area = search_popup(frame.area(), 50, 25);
+
         let block = Block::default()
             .borders(Borders::ALL)
             .title("Download")
             .style(Style::default().fg(Color::Yellow));
 
-        let paragraph = Paragraph::new(self.text.as_str())
+        let paragraph = Paragraph::new(self.text.value())
             .style(Style::default().fg(Color::White))
             .block(block);
 
-        let area = search_popup(frame.area(), 50, 25);
         frame.render_widget(Clear, area);
         frame.render_widget(paragraph, area);
     }
@@ -271,7 +265,7 @@ fn formart_duration(d: Duration) -> String {
 async fn main() -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
+    execute!(stdout, EnterAlternateScreen, EnableBracketedPaste)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
