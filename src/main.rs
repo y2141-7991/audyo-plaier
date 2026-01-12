@@ -1,22 +1,19 @@
 use std::{error::Error, io, time::Duration};
 
 use crossterm::{
-    event::{self, EnableBracketedPaste, Event as CEvent, KeyCode},
+    event::EnableBracketedPaste,
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use glob::glob;
+use ratatui::widgets::{Clear, Gauge, Padding};
 use ratatui::{
     Terminal,
     backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style, palette::tailwind},
     text::Span,
     widgets::{Block, Borders, List, ListItem, Paragraph},
-};
-use ratatui::{
-    style::Stylize,
-    widgets::{Clear, Gauge, ListState, Padding, Widget},
 };
 
 mod audyo;
@@ -25,43 +22,45 @@ use audyo::service::AudioService;
 mod app;
 use app::App;
 
-use crate::downloader::facade::YoutubeFacade;
-
 mod downloader;
 mod events;
 
 const CUSTOM_LABEL_COLOR: Color = tailwind::CYAN.c800;
 const GAUGE3_COLOR: Color = tailwind::BLUE.c800;
 
-struct Buttons {
-    states: ButtonStates,
-}
+// struct Buttons {
+//     states: ButtonStates,
+// }
 
-enum ButtonStates {
-    PlayOrPause,
-    SpeedUp,
-    SpeedDown,
-    Forward,
-    Backward,
-}
+// enum ButtonStates {
+//     PlayOrPause,
+//     SpeedUp,
+//     SpeedDown,
+//     Forward,
+//     Backward,
+// }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct AudioFolder {
     path: String,
     files: Vec<String>,
 }
 
 impl AudioFolder {
-    fn new(path: String) -> Self {
+    fn new() -> Self {
         Self {
-            path: path,
+            path: String::new(),
             files: Vec::new(),
         }
+    }
+    fn path(mut self, path: String) -> Self {
+        self.path = path;
+        self
     }
     fn load_mp3_file(&mut self) {
         let path = match glob(&self.path) {
             Ok(path) => path,
-            Err(e) => {
+            Err(_) => {
                 eprintln!("Invalid file path {}", &self.path);
                 return;
             }
@@ -268,18 +267,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     execute!(stdout, EnterAlternateScreen, EnableBracketedPaste)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
-
-    let ytb_facade = YoutubeFacade::new();
-    // ytb_facade.download_audio("EdkLBDaxKd8").await?;
-
-    let mut app = App::new(ytb_facade.output_dir.display().to_string());
-
+    let mut app = App::new();
+    app.load_folder();
     while !app.should_quit {
         terminal.draw(|f| {
             app.render_main_page(f);
         })?;
 
-        app.handle_event()?;
+        app.handle_event().await?;
     }
 
     disable_raw_mode()?;

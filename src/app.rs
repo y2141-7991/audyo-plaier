@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use ratatui::widgets::ListState;
 
-use crate::{AudioFolder, AudioService, Focus};
+use crate::{AudioFolder, AudioService, Focus, downloader::facade::YoutubeFacade};
 
 pub struct App<'a> {
     pub folder_state: ListState,
@@ -15,6 +15,8 @@ pub struct App<'a> {
     pub tick_rate: Duration,
     pub should_quit: bool,
     pub text: TextInput,
+
+    pub ytb_facade: YoutubeFacade,
 }
 
 pub struct TextInput {
@@ -80,10 +82,13 @@ impl TextInput {
 }
 
 impl App<'_> {
-    pub fn new(path: String) -> Self {
-        let mut audio_folder = AudioFolder::new(format!("{}/*", path.clone()));
-        audio_folder.load_mp3_file();
+    pub fn new() -> Self {
+        let ytb_facade = YoutubeFacade::new();
 
+        let audio_folder = AudioFolder::new().path(format!(
+            "{}/*",
+            ytb_facade.output_dir.display().to_string().clone()
+        ));
         let mut folder_state = ListState::default();
         folder_state.select(Some(0));
 
@@ -98,6 +103,10 @@ impl App<'_> {
             tick_rate: Duration::from_millis(200),
             should_quit: false,
             text: TextInput::new(),
+            ytb_facade: ytb_facade
         }
+    }
+    pub fn load_folder(&mut self) {
+        self.audio_folder.load_mp3_file();
     }
 }

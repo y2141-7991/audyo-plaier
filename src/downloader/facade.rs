@@ -37,4 +37,7 @@ impl YoutubeFacade {
         }
         Ok(())
     }
+    pub fn extract_video_id_from_url(&self, url: &str) -> Option<String> {
+        YoutubeClient::extract_video_id(url)
+    }
 }

@@ -1,9 +1,9 @@
 use crossterm::event::{self, Event as CEvent, KeyCode};
 
-use crate::{Focus, app::App, audyo::service::AudioEvent};
+use crate::{Focus, app::App, audyo::service::AudioEvent, downloader::client::Result};
 
 impl App<'_> {
-    pub fn handle_event(&mut self) -> Result<(), std::io::Error> {
+    pub async fn handle_event(&mut self) -> Result<()> {
         if event::poll(self.tick_rate)? {
             let event = event::read()?;
             match event {
@@ -23,6 +23,20 @@ impl App<'_> {
                         } else {
                             self.focus = Focus::Popup
                         }
+                    }
+                    KeyCode::Enter if self.focus == Focus::Popup => {
+                        let video_id = self
+                            .ytb_facade
+                            .extract_video_id_from_url(&self.text.content);
+                        if let Some(video_id) = video_id {
+                            self.ytb_facade.download_audio(&video_id).await?;
+                            self.load_folder();
+                        }
+                        self.focus = Focus::FolderList;
+                        self.text.clear();
+                    }
+                    KeyCode::Char('r') => {
+                        self.load_folder(); 
                     }
 
                     KeyCode::Char('j') | KeyCode::Down => {
@@ -71,9 +85,10 @@ impl App<'_> {
                     }
                     _ => {}
                 },
-                CEvent::Paste(pasted) if self.focus == Focus::Popup  => {
+                CEvent::Paste(pasted) if self.focus == Focus::Popup => {
                     self.text.content.push_str(&pasted);
                 }
+
                 _ => {}
             }
         }
