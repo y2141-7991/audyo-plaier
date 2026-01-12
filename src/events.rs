@@ -70,8 +70,11 @@ impl App<'_> {
                                             self.audio_service.pause();
                                         } else {
                                             self.audio_service.audio_event = AudioEvent::Play;
-                                            self.audio_service
-                                                .play(self.audio_folder.files[i].clone())
+                                            for idx in i..self.audio_folder.files.clone().len() {
+                                                self.audio_service.play(self.audio_folder.files[idx].clone());
+                                                self.folder_state.select(Some(idx));
+                                            }
+                                            
                                         }
                                     }
                                     "▶▶" => self.audio_service.speed_up(),
