@@ -1,13 +1,18 @@
 use std::{fs::File, time::Duration};
 
-use rodio::{Decoder, OutputStream, Sink, Source};
+use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 
 pub struct AudioService {
     _stream: OutputStream,
+    _stream_handle: OutputStreamHandle,
     sink: Sink,
     pub audio_event: AudioEvent,
     speed: f32,
     pub length: usize,
+    pub current_audio: Option<String>,
+    loop_single: bool,
+    loop_playlist: bool,
+    playlist: Vec<String>
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -19,17 +24,41 @@ pub enum AudioEvent {
 
 impl AudioService {
     pub fn new() -> Self {
-        let (_stream, _hanlder) = OutputStream::try_default().expect("Can not init OutputStream");
-        let sink = Sink::try_new(&_hanlder).expect("Can not init Sink and PlayError");
+        let (_stream, _stream_handle) =
+            OutputStream::try_default().expect("Can not init OutputStream");
+        let sink = Sink::try_new(&_stream_handle).expect("Can not init Sink and PlayError");
         Self {
             _stream,
+            _stream_handle,
             sink,
             audio_event: AudioEvent::default(),
             speed: 1.0,
-            length: 0,
+            length: 1,
+            current_audio: None,
+            loop_playlist: false,
+            loop_single: true,
+            playlist: Vec::new()
         }
     }
     pub fn play(&mut self, f: String) {
+        if let Some(cur) = &self.current_audio {
+            if f != *cur {
+                self.stop();
+                self.sink =
+                    Sink::try_new(&self._stream_handle).expect("Can not init Sink and PlayError");
+                self.current_audio = Some(f.clone());
+                self._play(f);
+            }  else {
+                self.current_audio = Some(f.clone());
+                self._play(f);
+            }
+            
+        } else {
+            self.current_audio = Some(f.clone());
+            self._play(f);
+        }
+    }
+    fn _play(&mut self, f: String) {
         let file = File::open(f).expect("Can not file this file");
         let source = Decoder::new(file).expect("Decoder Error");
         self.length = if let Some(d) = source.total_duration() {
@@ -37,8 +66,15 @@ impl AudioService {
         } else {
             0
         };
-        self.sink.append(source);
+        if self.loop_single {
+            self.sink.append(source.repeat_infinite());
+        } else {
+            self.sink.append(source);
+        }
         self.sink.play();
+    }
+    fn stop(&mut self) {
+        self.sink.stop();
     }
     pub fn pause(&mut self) {
         self.sink.pause();
@@ -70,6 +106,6 @@ impl AudioService {
         self.sink.try_seek(current).expect("Can not seek more");
     }
     pub fn get_current_position(&self) -> Duration {
-        self.sink.get_pos()
+        Duration::from_secs(self.sink.get_pos().as_secs() % (self.length as u64))
     }
 }

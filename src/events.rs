@@ -25,6 +25,7 @@ impl App<'_> {
                         }
                     }
                     KeyCode::Enter if self.focus == Focus::Popup => {
+                        self.focus = Focus::FolderList;
                         let video_id = self
                             .ytb_facade
                             .extract_video_id_from_url(&self.text.content);
@@ -32,11 +33,10 @@ impl App<'_> {
                             self.ytb_facade.download_audio(&video_id).await?;
                             self.load_folder();
                         }
-                        self.focus = Focus::FolderList;
                         self.text.clear();
                     }
                     KeyCode::Char('r') => {
-                        self.load_folder(); 
+                        self.load_folder();
                     }
 
                     KeyCode::Char('j') | KeyCode::Down => {
@@ -66,15 +66,17 @@ impl App<'_> {
                                 match self.buttons[self.button_index] {
                                     "▶⏸" => {
                                         if self.audio_service.audio_event == AudioEvent::Play {
-                                            self.audio_service.audio_event = AudioEvent::Pause;
-                                            self.audio_service.pause();
+                                            if self.audio_service.current_audio != Some(self.audio_folder.files[i].clone()) {
+                                                self.audio_service.play(self.audio_folder.files[i].clone());
+                                            } else {
+                                                self.audio_service.audio_event = AudioEvent::Pause;
+                                                self.audio_service.pause();
+                                            }
                                         } else {
                                             self.audio_service.audio_event = AudioEvent::Play;
-                                            for idx in i..self.audio_folder.files.clone().len() {
-                                                self.audio_service.play(self.audio_folder.files[idx].clone());
-                                                self.folder_state.select(Some(idx));
-                                            }
-                                            
+                                            self.audio_service
+                                                .play(self.audio_folder.files[i].clone());
+                                            self.folder_state.select(Some(i));
                                         }
                                     }
                                     "▶▶" => self.audio_service.speed_up(),

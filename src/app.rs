@@ -103,7 +103,7 @@ impl App<'_> {
             tick_rate: Duration::from_millis(200),
             should_quit: false,
             text: TextInput::new(),
-            ytb_facade: ytb_facade
+            ytb_facade: ytb_facade,
         }
     }
     pub fn load_folder(&mut self) {
