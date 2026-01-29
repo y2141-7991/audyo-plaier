@@ -25,8 +25,8 @@ use app::App;
 mod downloader;
 mod events;
 
-const CUSTOM_LABEL_COLOR: Color = tailwind::CYAN.c800;
-const GAUGE3_COLOR: Color = tailwind::BLUE.c800;
+const CUSTOM_LABEL_COLOR: Color = tailwind::WHITE;
+const GAUGE3_COLOR: Color = tailwind::GRAY.c800;
 
 // struct Buttons {
 //     states: ButtonStates,
@@ -168,6 +168,7 @@ impl App<'_> {
     }
 
     fn render_button(&mut self, frame: &mut ratatui::Frame, area: Rect) {
+        self.buttons = vec!["-5s↩", "+↪5s", "◀◀", "⏯️", "▶▶", self.loop_mode.text()];
         let button_chunks = Layout::horizontal([Constraint::Percentage(20); 6]).split(area);
 
         for (i, button) in self.buttons.iter().enumerate() {
@@ -265,7 +266,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableBracketedPaste)?;
-    let backend = CrosstermBackend::new(stdout);
+    let backend: CrosstermBackend<io::Stdout> = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     let mut app = App::new();
     app.load_folder();

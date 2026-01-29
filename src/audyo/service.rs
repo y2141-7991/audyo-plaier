@@ -1,4 +1,4 @@
-use std::{fs::File, time::Duration};
+use std::{fs::File, io::BufReader, time::Duration};
 
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 
@@ -12,7 +12,7 @@ pub struct AudioService {
     pub current_audio: Option<String>,
     loop_single: bool,
     loop_playlist: bool,
-    playlist: Vec<String>
+    playlist: Vec<String>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -37,7 +37,7 @@ impl AudioService {
             current_audio: None,
             loop_playlist: false,
             loop_single: true,
-            playlist: Vec::new()
+            playlist: Vec::new(),
         }
     }
     pub fn play(&mut self, f: String) {
@@ -48,11 +48,10 @@ impl AudioService {
                     Sink::try_new(&self._stream_handle).expect("Can not init Sink and PlayError");
                 self.current_audio = Some(f.clone());
                 self._play(f);
-            }  else {
+            } else {
                 self.current_audio = Some(f.clone());
                 self._play(f);
             }
-            
         } else {
             self.current_audio = Some(f.clone());
             self._play(f);
@@ -60,7 +59,8 @@ impl AudioService {
     }
     fn _play(&mut self, f: String) {
         let file = File::open(f).expect("Can not file this file");
-        let source = Decoder::new(file).expect("Decoder Error");
+        let buf_reader = BufReader::new(file);
+        let source = Decoder::new(buf_reader).expect("Decoder Error");
         self.length = if let Some(d) = source.total_duration() {
             d.as_secs() as usize
         } else {
@@ -90,11 +90,11 @@ impl AudioService {
     pub fn seek_forward(&mut self) {
         let mut current = self.sink.get_pos();
         if self.length > 5 && (current.as_secs() as usize) >= (self.length - 5) {
-            current = Duration::from_secs(self.length as u64)
+            current = Duration::from_secs(self.length as u64);
         } else {
             current += Duration::from_secs(5);
         }
-        self.sink.try_seek(current).expect("Can not seek more");
+        let _ = self.sink.try_seek(current);
     }
     pub fn seek_backward(&mut self) {
         let mut current = self.sink.get_pos();
@@ -103,7 +103,7 @@ impl AudioService {
         } else {
             current -= Duration::from_secs(5);
         }
-        self.sink.try_seek(current).expect("Can not seek more");
+        let _ = self.sink.try_seek(current);
     }
     pub fn get_current_position(&self) -> Duration {
         Duration::from_secs(self.sink.get_pos().as_secs() % (self.length as u64))
