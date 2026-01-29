@@ -14,37 +14,51 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        include:
-          # Linux
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            deps: sudo apt-get update && sudo apt-get install -y g++ pkg-config libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0
-            archive: tar.gz
-
-          # macOS Apple Silicon
-          - target: aarch64-apple-darwin
-            os: macos-latest
-            deps: ""
-            archive: tar.gz
-
-          # macOS Intel (optional)
-          - target: x86_64-apple-darwin
-            os: macos-latest
-            deps: ""
-            archive: tar.gz
-
-    runs-on: ${{ matrix.os }}
-
+  build-linux:
+    runs-on: ubuntu-latest
+    
     steps:
       - uses: actions/checkout@v4
 
-      # Install system dependencies
-      - name: Install dependencies
-        if: matrix.deps != ''
-        run: ${{ matrix.deps }}
+      - name: Install ALSA and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev \
+            pkg-config \
+            libx11-dev \
+            libudev-dev \
+            libxkbcommon-x11-0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Package
+        run: |
+          tar -czvf ${{ env.APP_NAME }}-${{ github.ref_name }}-x86_64-unknown-linux-gnu.tar.gz \
+            -C target/release ${{ env.APP_NAME }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: "*.tar.gz"
+
+  build-macos:
+    runs-on: macos-latest
+    
+    strategy:
+      matrix:
+        target: [x86_64-apple-darwin, aarch64-apple-darwin]
+    
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -61,33 +75,58 @@ jobs:
 
       - name: Package
         run: |
-          cd target/${{ matrix.target }}/release
-          tar -czvf ../../../${{ env.APP_NAME }}-${{ github.ref_name }}-${{ matrix.target }}.${{ matrix.archive }} ${{ env.APP_NAME }}
+          tar -czvf ${{ env.APP_NAME }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz \
+            -C target/${{ matrix.target }}/release ${{ env.APP_NAME }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.APP_NAME }}-${{ matrix.target }}
-          path: ${{ env.APP_NAME }}-${{ github.ref_name }}-${{ matrix.target }}.*
+          name: macos-${{ matrix.target }}
+          path: "*.tar.gz"
 
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-
+  build-windows:
+    runs-on: windows-latest
+    
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Package
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "target/release/${{ env.APP_NAME }}.exe" `
+            -DestinationPath "${{ env.APP_NAME }}-${{ github.ref_name }}-x86_64-pc-windows-msvc.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86_64
+          path: "*.zip"
+
+  release:
+    needs: [build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+
+    steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Generate checksums
+      - name: Prepare release files
         run: |
           cd artifacts
           find . -type f \( -name "*.tar.gz" -o -name "*.zip" \) -exec mv {} . \;
-          sha256sum *.tar.gz > checksums.sha256 || true
-          sha256sum *.zip >> checksums.sha256 || true
+          sha256sum *.tar.gz *.zip > checksums.sha256 2>/dev/null || true
+          ls -la
           cat checksums.sha256
 
       - name: Create Release
