@@ -11,7 +11,6 @@ permissions:
 
 env:
   APP_NAME: audyo-plaier
-  CARGO_TERM_COLOR: always
 
 jobs:
   build-linux:
@@ -20,15 +19,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install ALSA and dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libasound2-dev \
-            pkg-config \
-            libx11-dev \
-            libudev-dev \
-            libxkbcommon-x11-0
+          sudo apt-get install -y libasound2-dev pkg-config
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -41,7 +35,7 @@ jobs:
 
       - name: Package
         run: |
-          tar -czvf ${{ env.APP_NAME }}-${{ github.ref_name }}-x86_64-unknown-linux-gnu.tar.gz \
+          tar -czvf ${{ env.APP_NAME }}-${{ github.ref_name }}-linux-x86_64.tar.gz \
             -C target/release ${{ env.APP_NAME }}
 
       - name: Upload artifact
@@ -84,35 +78,8 @@ jobs:
           name: macos-${{ matrix.target }}
           path: "*.tar.gz"
 
-  build-windows:
-    runs-on: windows-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-
-      - name: Build
-        run: cargo build --release
-
-      - name: Package
-        shell: pwsh
-        run: |
-          Compress-Archive -Path "target/release/${{ env.APP_NAME }}.exe" `
-            -DestinationPath "${{ env.APP_NAME }}-${{ github.ref_name }}-x86_64-pc-windows-msvc.zip"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-x86_64
-          path: "*.zip"
-
   release:
-    needs: [build-linux, build-macos, build-windows]
+    needs: [build-linux, build-macos]
     runs-on: ubuntu-latest
 
     steps:
@@ -121,21 +88,17 @@ jobs:
         with:
           path: artifacts
 
-      - name: Prepare release files
+      - name: Prepare files
         run: |
           cd artifacts
-          find . -type f \( -name "*.tar.gz" -o -name "*.zip" \) -exec mv {} . \;
-          sha256sum *.tar.gz *.zip > checksums.sha256 2>/dev/null || true
-          ls -la
+          find . -name "*.tar.gz" -exec mv {} . \;
+          sha256sum *.tar.gz > checksums.sha256
           cat checksums.sha256
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          draft: false
-          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
           generate_release_notes: true
           files: |
             artifacts/*.tar.gz
-            artifacts/*.zip
             artifacts/checksums.sha256
