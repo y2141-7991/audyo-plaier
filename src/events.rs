@@ -1,6 +1,6 @@
 use std::thread;
 
-use crossterm::event::{self, Event as CEvent, KeyCode};
+use crossterm::event::{self, Event as CEvent, KeyCode, KeyEventKind};
 use tokio::runtime::Runtime;
 
 use crate::{
@@ -18,15 +18,22 @@ impl App<'_> {
         }
 
         let event = event::read()?;
-
         match event {
-            CEvent::Key(key_event) => match key_event.code {
+            CEvent::Key(key_event) => {
+                match key_event.code {
                 KeyCode::Char('q') => self.should_quit = true,
                 KeyCode::Tab => {
                     self.focus = if self.focus == Focus::Buttons {
                         Focus::FolderList
                     } else {
                         Focus::Buttons
+                    }
+                }
+                KeyCode::Char('/') | KeyCode::F(1) => {
+                    if !self.show_help {
+                        self.show_help = true
+                    } else {
+                        self.show_help = false
                     }
                 }
                 KeyCode::Char('s') => {
@@ -104,7 +111,7 @@ impl App<'_> {
                     }
                 }
                 _ => {}
-            },
+            }},
             CEvent::Paste(pasted) if self.focus == Focus::Popup => {
                 self.text.content.push_str(&pasted);
             }

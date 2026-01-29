@@ -6,7 +6,6 @@ use crossterm::{
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use glob::glob;
-use ratatui::widgets::{Clear, Gauge, Padding};
 use ratatui::{
     Terminal,
     backend::CrosstermBackend,
@@ -14,6 +13,10 @@ use ratatui::{
     style::{Color, Modifier, Style, palette::tailwind},
     text::Span,
     widgets::{Block, Borders, List, ListItem, Paragraph},
+};
+use ratatui::{
+    text::Line,
+    widgets::{Clear, Gauge, Padding},
 };
 
 mod audyo;
@@ -142,7 +145,10 @@ impl App<'_> {
         self.render_progress_bar(frame, vertical[1]);
         self.render_button(frame, vertical[2]);
         if self.focus == Focus::Popup {
-            self.render_search_box(frame);
+            self.render_search_popup(frame);
+        }
+        if self.show_help {
+            self.render_help_popup(frame);
         }
     }
 
@@ -165,6 +171,7 @@ impl App<'_> {
             .highlight_style(hs)
             .highlight_symbol(" >");
         frame.render_stateful_widget(folder_list, area, &mut self.folder_state);
+        self.render_help_box(frame, area);
     }
 
     fn render_button(&mut self, frame: &mut ratatui::Frame, area: Rect) {
@@ -227,8 +234,8 @@ impl App<'_> {
         frame.render_widget(gauge, area);
     }
 
-    fn render_search_box(&mut self, frame: &mut ratatui::Frame) {
-        let area = search_popup(frame.area(), 50, 25);
+    fn render_search_popup(&mut self, frame: &mut ratatui::Frame) {
+        let area = _popup(frame.area(), 50, 25);
 
         let block = Block::default()
             .borders(Borders::ALL)
@@ -242,13 +249,106 @@ impl App<'_> {
         frame.render_widget(Clear, area);
         frame.render_widget(paragraph, area);
     }
+    fn render_help_popup(&mut self, frame: &mut ratatui::Frame) {
+        let area = _popup(frame.area(), 25, 50);
+        let help_lines = vec![
+            Line::from(vec![Span::styled(
+                "  NAVIGATION",
+                Style::default().fg(Color::Yellow),
+            )]),
+            Line::from(vec![
+                Span::styled("    Tab    ", Style::default().fg(Color::Cyan)),
+                Span::raw("Switch focus"),
+            ]),
+            Line::from(vec![
+                Span::styled("    j/↓    ", Style::default().fg(Color::Cyan)),
+                Span::raw("Next track"),
+            ]),
+            Line::from(vec![
+                Span::styled("    k/↑    ", Style::default().fg(Color::Cyan)),
+                Span::raw("Previous track"),
+            ]),
+            Line::from(""),
+            Line::from(vec![Span::styled(
+                "  PLAYBACK",
+                Style::default().fg(Color::Yellow),
+            )]),
+            Line::from(vec![
+                Span::styled("    Space  ", Style::default().fg(Color::Cyan)),
+                Span::raw("Activate button"),
+            ]),
+            Line::from(""),
+            Line::from(vec![Span::styled(
+                "  DOWNLOAD",
+                Style::default().fg(Color::Yellow),
+            )]),
+            Line::from(vec![
+                Span::styled("    s      ", Style::default().fg(Color::Cyan)),
+                Span::raw("Open download"),
+            ]),
+            Line::from(vec![
+                Span::styled("    Ctrl+V ", Style::default().fg(Color::Cyan)),
+                Span::raw("Paste URL"),
+            ]),
+            Line::from(vec![
+                Span::styled("    Enter  ", Style::default().fg(Color::Cyan)),
+                Span::raw("Processing download"),
+            ]),
+            Line::from(""),
+            Line::from(vec![Span::styled(
+                "  OTHER",
+                Style::default().fg(Color::Yellow),
+            )]),
+            Line::from(vec![
+                Span::styled("    r      ", Style::default().fg(Color::Cyan)),
+                Span::raw("Reload folder"),
+            ]),
+            Line::from(vec![
+                Span::styled("    q      ", Style::default().fg(Color::Cyan)),
+                Span::raw("Quit"),
+            ]),
+            Line::from(vec![
+                Span::styled("    /      ", Style::default().fg(Color::Cyan)),
+                Span::raw("Close help"),
+            ]),
+        ];
+
+        let help = Paragraph::new(help_lines).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Cyan))
+                .title(" 🎵 Help "),
+        );
+        frame.render_widget(Clear, area);
+        frame.render_widget(help, area);
+    }
+
+    fn render_help_box(&mut self, frame: &mut ratatui::Frame, area: Rect) {
+        let area = length_box(area, 10, 3);
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().fg(Color::White));
+        let paragraph = Paragraph::new("/: Help")
+            .style(Style::default().fg(Color::White))
+            .block(block)
+            .centered();
+        frame.render_widget(paragraph, area);
+    }
 }
 
-fn search_popup(area: Rect, per_x: u16, per_y: u16) -> Rect {
+fn _popup(area: Rect, per_x: u16, per_y: u16) -> Rect {
     let vertical =
         Layout::vertical([Constraint::Percentage(per_y)]).flex(ratatui::layout::Flex::Center);
     let horizontal =
         Layout::horizontal([Constraint::Percentage(per_x)]).flex(ratatui::layout::Flex::Center);
+    let [area] = vertical.areas(area);
+    let [area] = horizontal.areas(area);
+    area
+}
+fn length_box(area: Rect, len_x: u16, len_y: u16) -> Rect {
+    let vertical = Layout::vertical([Constraint::Length(len_y)]).flex(ratatui::layout::Flex::End);
+    let horizontal =
+        Layout::horizontal([Constraint::Length(len_x)]).flex(ratatui::layout::Flex::End);
     let [area] = vertical.areas(area);
     let [area] = horizontal.areas(area);
     area

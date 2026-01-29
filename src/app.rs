@@ -20,6 +20,7 @@ pub struct App<'a> {
     pub loop_mode: LoopMode,
     pub tx: mpsc::Sender<SignalMessage>,
     rx: mpsc::Receiver<SignalMessage>,
+    pub show_help: bool,
 }
 
 pub struct TextInput {
@@ -111,6 +112,7 @@ impl App<'_> {
             loop_mode: LoopMode::Single,
             tx: tx,
             rx: rx,
+            show_help: false,
         }
     }
     pub fn load_folder(&mut self) {
