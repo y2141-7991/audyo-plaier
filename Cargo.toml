@@ -2,6 +2,19 @@
 name = "audyo-plaier"
 version = "0.1.0"
 edition = "2024"
+authors = ["Y Nguyen <ndty14@gmail.com>"]
+description = "YouTube media player"
+license = "MIT"
+repository = "https://github.com/y2141-7991/audyo-plaier/"
+readme = "README.md"
+keywords = ["youtube", "downloader", "audio"]
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"
 
 [dependencies]
 color-eyre = "0.6.5"
