@@ -22,7 +22,7 @@ jobs:
           # Linux
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            deps: sudo apt-get update && sudo apt install -y libasound2-dev libudev-dev pkg-config
+            deps: sudo apt-get update && sudo apt install -y g++ pkg-config libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0
             archive: tar.gz
 
           
