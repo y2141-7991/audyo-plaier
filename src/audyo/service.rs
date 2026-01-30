@@ -10,6 +10,7 @@ pub struct AudioService {
     speed: f32,
     pub length: usize,
     pub current_audio: Option<String>,
+    pub current_volume: f32,
     loop_single: bool,
     loop_playlist: bool,
     playlist: Vec<String>,
@@ -27,6 +28,7 @@ impl AudioService {
         let (_stream, _stream_handle) =
             OutputStream::try_default().expect("Can not init OutputStream");
         let sink = Sink::try_new(&_stream_handle).expect("Can not init Sink and PlayError");
+        let cur_vol = sink.volume();
         Self {
             _stream,
             _stream_handle,
@@ -35,6 +37,7 @@ impl AudioService {
             speed: 1.0,
             length: 1,
             current_audio: None,
+            current_volume: cur_vol,
             loop_playlist: false,
             loop_single: true,
             playlist: Vec::new(),
@@ -104,6 +107,20 @@ impl AudioService {
             current -= Duration::from_secs(5);
         }
         let _ = self.sink.try_seek(current);
+    }
+    pub fn mute(&mut self) {
+        self.sink.set_volume(0.0);
+    }
+    pub fn unmute(&mut self) {
+        self.sink.set_volume(self.current_volume);
+    }
+    pub fn increase_vol(&mut self) {
+        self.current_volume = (self.current_volume + 0.1).min(1.0);
+        self.sink.set_volume(self.current_volume);
+    }
+    pub fn decrease_vol(&mut self) {
+        self.current_volume = (self.current_volume - 0.1).max(0.0);
+        self.sink.set_volume(self.current_volume);
     }
     pub fn get_current_position(&self) -> Duration {
         Duration::from_secs(self.sink.get_pos().as_secs() % (self.length as u64))

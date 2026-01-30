@@ -175,7 +175,14 @@ impl App<'_> {
     }
 
     fn render_button(&mut self, frame: &mut ratatui::Frame, area: Rect) {
-        self.buttons = vec!["-5s↩", "+↪5s", "◀◀", "⏯️", "▶▶", self.loop_mode.text()];
+        self.buttons = vec![
+            self.volume.mute_text(),
+            self.volume.text(),
+            "⏮️",
+            "⏯️",
+            "⏭️",
+            self.loop_mode.text(),
+        ];
         let button_chunks = Layout::horizontal([Constraint::Percentage(20); 6]).split(area);
 
         for (i, button) in self.buttons.iter().enumerate() {
@@ -183,7 +190,7 @@ impl App<'_> {
             let style = if is_selected {
                 Style::default()
                     .fg(Color::Black)
-                    .bg(Color::Green)
+                    .bg(tailwind::CYAN.c100)
                     .add_modifier(Modifier::BOLD)
             } else {
                 Style::default()

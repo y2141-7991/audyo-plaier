@@ -1,11 +1,11 @@
-use std::thread;
+use std::{thread, time::Duration};
 
-use crossterm::event::{self, Event as CEvent, KeyCode, KeyEventKind};
+use crossterm::event::{self, Event as CEvent, KeyCode};
 use tokio::runtime::Runtime;
 
 use crate::{
     Focus,
-    app::{App, SignalMessage},
+    app::{App, SignalMessage, Volume},
     audyo::service::AudioEvent,
     downloader::{client::Result, facade::YoutubeFacade},
 };
@@ -13,14 +13,19 @@ use crate::{
 impl App<'_> {
     pub async fn handle_event(&mut self) -> Result<()> {
         self.poll_msg();
+
+        if self.volume != Volume::Normal
+            && self.last_toggle_volume.elapsed() > Duration::from_millis(200)
+        {
+            self.volume = self.volume.normal();
+        }
         if !event::poll(self.tick_rate)? {
             return Ok(());
         }
 
         let event = event::read()?;
         match event {
-            CEvent::Key(key_event) => {
-                match key_event.code {
+            CEvent::Key(key_event) => match key_event.code {
                 KeyCode::Char('q') => self.should_quit = true,
                 KeyCode::Tab => {
                     self.focus = if self.focus == Focus::Buttons {
@@ -62,10 +67,26 @@ impl App<'_> {
                     if self.focus == Focus::FolderList {
                         self.next_folder();
                     }
+                    if self.focus == Focus::Buttons {
+                        match self.button_index {
+                            1 => {
+                                self.toggle_decrease_vol();
+                            }
+                            _ => {}
+                        }
+                    }
                 }
                 KeyCode::Char('k') | KeyCode::Up => {
                     if self.focus == Focus::FolderList {
                         self.prev_folder();
+                    }
+                    if self.focus == Focus::Buttons {
+                        match self.button_index {
+                            1 => {
+                                self.toggle_increase_vol();
+                            }
+                            _ => {}
+                        }
                     }
                 }
 
@@ -97,13 +118,31 @@ impl App<'_> {
                                     } else {
                                         self.audio_service.audio_event = AudioEvent::Play;
                                         self.audio_service.play(self.audio_folder.files[i].clone());
-                                        self.folder_state.select(Some(i));
                                     }
                                 }
-                                4 => self.audio_service.speed_up(),
-                                2 => self.audio_service.speed_down(),
-                                1 => self.audio_service.seek_forward(),
-                                0 => self.audio_service.seek_backward(),
+                                4 => {
+                                    let next_audio = if i == self.audio_folder.files.len() - 1 {
+                                        0
+                                    } else {
+                                        i + 1
+                                    };
+                                    self.audio_service.audio_event = AudioEvent::Play;
+                                    self.audio_service
+                                        .play(self.audio_folder.files[next_audio].clone());
+                                    self.folder_state.select(Some(next_audio));
+                                }
+                                2 => {
+                                    let prev_audio = if i == 0 {
+                                        self.audio_folder.files.len() - 1
+                                    } else {
+                                        i - 1
+                                    };
+                                    self.audio_service.audio_event = AudioEvent::Play;
+                                    self.audio_service
+                                        .play(self.audio_folder.files[prev_audio].clone());
+                                    self.folder_state.select(Some(prev_audio));
+                                }
+                                0 => self.toggle_mute(),
                                 5 => self.toggle_mode(),
                                 _ => {}
                             }
@@ -111,7 +150,7 @@ impl App<'_> {
                     }
                 }
                 _ => {}
-            }},
+            },
             CEvent::Paste(pasted) if self.focus == Focus::Popup => {
                 self.text.content.push_str(&pasted);
             }

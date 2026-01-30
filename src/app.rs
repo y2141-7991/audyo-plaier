@@ -1,6 +1,6 @@
 use ratatui::widgets::ListState;
-use std::sync::mpsc;
 use std::time::Duration;
+use std::{sync::mpsc, time::Instant};
 
 use crate::{AudioFolder, AudioService, Focus, downloader::facade::YoutubeFacade};
 
@@ -18,6 +18,8 @@ pub struct App<'a> {
 
     pub ytb_facade: YoutubeFacade,
     pub loop_mode: LoopMode,
+    pub volume: Volume,
+    pub last_toggle_volume: Instant,
     pub tx: mpsc::Sender<SignalMessage>,
     rx: mpsc::Receiver<SignalMessage>,
     pub show_help: bool,
@@ -110,6 +112,8 @@ impl App<'_> {
             text: TextInput::new(),
             ytb_facade: ytb_facade,
             loop_mode: LoopMode::Single,
+            volume: Volume::Normal,
+            last_toggle_volume: Instant::now(),
             tx: tx,
             rx: rx,
             show_help: false,
@@ -127,6 +131,25 @@ impl App<'_> {
                 SignalMessage::Downloaded => self.load_folder(),
             }
         }
+    }
+    pub fn toggle_mute(&mut self) {
+        if self.volume == Volume::Normal {
+            self.audio_service.mute();
+            self.volume = self.volume.mute();
+        } else {
+            self.audio_service.unmute();
+            self.volume = self.volume.normal();
+        }
+    }
+    pub fn toggle_increase_vol(&mut self) {
+        self.volume = self.volume.up();
+        self.audio_service.increase_vol();
+        self.last_toggle_volume = Instant::now();
+    }
+    pub fn toggle_decrease_vol(&mut self) {
+        self.volume = self.volume.down();
+        self.audio_service.decrease_vol();
+        self.last_toggle_volume = Instant::now();
     }
 }
 
@@ -149,6 +172,53 @@ impl LoopMode {
             Self::Single => "🔂",
             Self::Playlist => "🔁",
             Self::Shuffle => "🔀",
+        }
+    }
+}
+
+pub enum Volume {
+    Up,
+    Down,
+    Normal,
+    Mute,
+}
+
+impl PartialEq for Volume {
+    fn eq(&self, other: &Self) -> bool {
+        matches!(
+            (self, other),
+            (Volume::Up, Volume::Up)
+                | (Volume::Down, Volume::Down)
+                | (Volume::Normal, Volume::Normal)
+                | (Volume::Mute, Volume::Mute)
+        )
+    }
+    fn ne(&self, other: &Self) -> bool {
+        !self.eq(other)
+    }
+}
+impl Volume {
+    pub fn up(&self) -> Self {
+        Self::Up
+    }
+    pub fn down(&self) -> Self {
+        Self::Down
+    }
+    pub fn normal(&self) -> Self {
+        Self::Normal
+    }
+    pub fn mute(&self) -> Self {
+        Self::Mute
+    }
+    pub fn mute_text(&self) -> &'static str {
+        "🔇"
+    }
+    pub fn text(&self) -> &'static str {
+        match self {
+            Self::Down => "⬇️",
+            Self::Up => "⬆️",
+            Self::Normal => "🔉",
+            Self::Mute => "🔇",
         }
     }
 }
