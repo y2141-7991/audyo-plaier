@@ -19,6 +19,7 @@ pub struct App<'a> {
     pub ytb_facade: YoutubeFacade,
     pub loop_mode: LoopMode,
     pub volume: Volume,
+    pub mute_sound: MuteSound,
     pub last_toggle_volume: Instant,
     pub tx: mpsc::Sender<SignalMessage>,
     rx: mpsc::Receiver<SignalMessage>,
@@ -113,6 +114,7 @@ impl App<'_> {
             ytb_facade: ytb_facade,
             loop_mode: LoopMode::Single,
             volume: Volume::Normal,
+            mute_sound: MuteSound::Off,
             last_toggle_volume: Instant::now(),
             tx: tx,
             rx: rx,
@@ -133,12 +135,12 @@ impl App<'_> {
         }
     }
     pub fn toggle_mute(&mut self) {
-        if self.volume == Volume::Normal {
+        if self.mute_sound == MuteSound::Off {
             self.audio_service.mute();
-            self.volume = self.volume.mute();
+            self.mute_sound = self.mute_sound.on();
         } else {
             self.audio_service.unmute();
-            self.volume = self.volume.normal();
+            self.mute_sound = self.mute_sound.off();
         }
     }
     pub fn toggle_increase_vol(&mut self) {
@@ -176,11 +178,11 @@ impl LoopMode {
     }
 }
 
+#[derive(Debug)]
 pub enum Volume {
     Up,
     Down,
     Normal,
-    Mute,
 }
 
 impl PartialEq for Volume {
@@ -190,7 +192,6 @@ impl PartialEq for Volume {
             (Volume::Up, Volume::Up)
                 | (Volume::Down, Volume::Down)
                 | (Volume::Normal, Volume::Normal)
-                | (Volume::Mute, Volume::Mute)
         )
     }
     fn ne(&self, other: &Self) -> bool {
@@ -207,19 +208,37 @@ impl Volume {
     pub fn normal(&self) -> Self {
         Self::Normal
     }
-    pub fn mute(&self) -> Self {
-        Self::Mute
-    }
-    pub fn mute_text(&self) -> &'static str {
-        "🔇"
-    }
     pub fn text(&self) -> &'static str {
         match self {
             Self::Down => "⬇️",
             Self::Up => "⬆️",
             Self::Normal => "🔉",
-            Self::Mute => "🔇",
         }
+    }
+}
+
+pub enum MuteSound {
+    On,
+    Off,
+}
+impl MuteSound {
+    pub fn on(&self) -> Self {
+        Self::On
+    }
+    pub fn off(&self) -> Self {
+        Self::Off
+    }
+    pub fn text(&self) -> &'static str {
+        match self {
+            Self::On => "🔇",
+            Self::Off => "🔉",
+        }
+    }
+}
+
+impl PartialEq for MuteSound {
+    fn eq(&self, other: &Self) -> bool {
+        matches!((self, other), (Self::Off, Self::Off) | (Self::On, Self::On))
     }
 }
 

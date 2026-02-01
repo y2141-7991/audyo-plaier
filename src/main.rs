@@ -176,7 +176,7 @@ impl App<'_> {
 
     fn render_button(&mut self, frame: &mut ratatui::Frame, area: Rect) {
         self.buttons = vec![
-            self.volume.mute_text(),
+            self.mute_sound.text(),
             self.volume.text(),
             "⏮️",
             "⏯️",
