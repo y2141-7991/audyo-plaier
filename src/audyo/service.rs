@@ -81,10 +81,10 @@ impl AudioService {
                 self.stop();
                 self.sink = Sink::try_new(&self._stream_handle).expect("Can not init Sink and PlayError");
                 self.current_audio = Some(f.clone());
-                
+                self.append_source_to_sink_from_file(f);
             }
             else {
-                if self.sink.empty() {
+                if self.sink.len() < 1 {
                     self.append_source_to_sink_from_file(f);
                 }
             }
@@ -93,7 +93,28 @@ impl AudioService {
             self.append_source_to_sink_from_file(f);
         }
     }  
-    fn play_playlist(&mut self) {}
+    fn playlist_mode(&mut self) {
+        if self.playlist.is_empty() {
+            return;
+        }
+        let f = self.playlist[self.current_playlist_index].clone();
+        if let Some(cur) = &self.current_audio {
+            
+        } else {
+            self.current_audio = Some(f.clone());
+            self.append_source_to_sink_from_file(f);
+        }
+
+
+        if self.current_playlist_index == self.playlist.len() - 1{
+           self.current_playlist_index = 0;
+        } else {
+            self.current_playlist_index += 1;
+        }
+    }
+    fn shuffle_mode(&mut self) {
+
+    }
     fn stop(&mut self) {
         self.sink.stop();
     }

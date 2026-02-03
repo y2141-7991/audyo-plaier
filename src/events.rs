@@ -123,7 +123,7 @@ impl App<'_> {
                                         AudioEvent::Pause => {
                                             self.audio_service.audio_event = AudioEvent::Play;
                                             self.audio_service.play();
-                                        },
+                                        }
                                         AudioEvent::Play => {
                                             self.audio_service.audio_event = AudioEvent::Pause;
                                             self.audio_service.pause();
