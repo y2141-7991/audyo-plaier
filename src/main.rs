@@ -11,8 +11,9 @@ use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style, palette::tailwind},
+    symbols::bar::NINE_LEVELS,
     text::Span,
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, List, ListItem, Paragraph, Sparkline},
 };
 use ratatui::{
     text::Line,
@@ -142,6 +143,7 @@ impl App<'_> {
         ])
         .split(horizontal[1]);
 
+        self.render_waveform(frame, vertical[0]);
         self.render_progress_bar(frame, vertical[1]);
         self.render_button(frame, vertical[2]);
         if self.focus == Focus::Popup {
@@ -151,7 +153,14 @@ impl App<'_> {
             self.render_help_popup(frame);
         }
     }
-
+    fn render_waveform(&mut self, frame: &mut ratatui::Frame, area: Rect) {
+        let sparkline = Sparkline::default()
+            .block(Block::default())
+            .style(Style::default().fg(Color::Green))
+            .data(vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 01, 3, 4, 5, 2, 6])
+            .bar_set(NINE_LEVELS);
+        frame.render_widget(sparkline, area);
+    }
     fn render_list_files(&mut self, frame: &mut ratatui::Frame, area: Rect) {
         let folder_items: Vec<_> = self
             .audio_folder
@@ -378,6 +387,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut app = App::new();
     app.load_folder();
     while !app.should_quit {
+        app.audio_service.tick();
         terminal.draw(|f| {
             app.render_main_page(f);
         })?;

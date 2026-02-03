@@ -15,7 +15,7 @@ impl App<'_> {
         self.poll_msg();
 
         if self.volume != Volume::Normal
-            && self.last_toggle_volume.elapsed() > Duration::from_millis(200)
+            && self.last_toggle_volume.elapsed() > Duration::from_millis(120)
         {
             self.volume = self.volume.normal();
         }
@@ -105,19 +105,29 @@ impl App<'_> {
                         if let Some(i) = self.folder_state.selected() {
                             match self.button_index {
                                 3 => {
-                                    if self.audio_service.audio_event == AudioEvent::Play {
-                                        if self.audio_service.current_audio
-                                            != Some(self.audio_folder.files[i].clone())
-                                        {
-                                            self.audio_service
-                                                .play(self.audio_folder.files[i].clone());
-                                        } else {
+                                    self.audio_service.current_playlist_index = i;
+                                    // if self.audio_service.audio_event == AudioEvent::Play {
+                                    //     if self.audio_service.current_audio
+                                    //         != Some(self.audio_folder.files[i].clone())
+                                    //     {
+                                    //         self.audio_service.play();
+                                    //     } else {
+                                    //         self.audio_service.audio_event = AudioEvent::Pause;
+                                    //         self.audio_service.pause();
+                                    //     }
+                                    // } else if self.audio_service.audio_event == AudioEvent::Pause {
+                                    //     self.audio_service.audio_event = AudioEvent::Play;
+                                    //     self.audio_service.play();
+                                    // }
+                                    match self.audio_service.audio_event {
+                                        AudioEvent::Pause => {
+                                            self.audio_service.audio_event = AudioEvent::Play;
+                                            self.audio_service.play();
+                                        },
+                                        AudioEvent::Play => {
                                             self.audio_service.audio_event = AudioEvent::Pause;
                                             self.audio_service.pause();
                                         }
-                                    } else {
-                                        self.audio_service.audio_event = AudioEvent::Play;
-                                        self.audio_service.play(self.audio_folder.files[i].clone());
                                     }
                                 }
                                 4 => {
@@ -126,9 +136,9 @@ impl App<'_> {
                                     } else {
                                         i + 1
                                     };
+                                    self.audio_service.current_playlist_index = next_audio;
                                     self.audio_service.audio_event = AudioEvent::Play;
-                                    self.audio_service
-                                        .play(self.audio_folder.files[next_audio].clone());
+                                    self.audio_service.play();
                                     self.folder_state.select(Some(next_audio));
                                 }
                                 2 => {
@@ -137,9 +147,9 @@ impl App<'_> {
                                     } else {
                                         i - 1
                                     };
+                                    self.audio_service.current_playlist_index = prev_audio;
                                     self.audio_service.audio_event = AudioEvent::Play;
-                                    self.audio_service
-                                        .play(self.audio_folder.files[prev_audio].clone());
+                                    self.audio_service.play();
                                     self.folder_state.select(Some(prev_audio));
                                 }
                                 0 => self.toggle_mute(),

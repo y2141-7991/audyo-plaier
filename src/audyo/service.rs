@@ -2,6 +2,9 @@ use std::{fs::File, io::BufReader, time::Duration};
 
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 
+use crate::app::LoopMode;
+
+
 pub struct AudioService {
     _stream: OutputStream,
     _stream_handle: OutputStreamHandle,
@@ -10,10 +13,10 @@ pub struct AudioService {
     speed: f32,
     pub length: usize,
     pub current_audio: Option<String>,
+    pub current_playlist_index: usize,
     pub current_volume: f32,
-    loop_single: bool,
-    loop_playlist: bool,
-    playlist: Vec<String>,
+    pub playlist: Vec<String>,
+    pub loop_mode: LoopMode,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -28,6 +31,7 @@ impl AudioService {
         let (_stream, _stream_handle) =
             OutputStream::try_default().expect("Can not init OutputStream");
         let sink = Sink::try_new(&_stream_handle).expect("Can not init Sink and PlayError");
+        sink.pause();
         let cur_vol = sink.volume();
         Self {
             _stream,
@@ -38,29 +42,25 @@ impl AudioService {
             length: 1,
             current_audio: None,
             current_volume: cur_vol,
-            loop_playlist: false,
-            loop_single: true,
+            current_playlist_index: 0,
             playlist: Vec::new(),
+            loop_mode: LoopMode::Single,
         }
     }
-    pub fn play(&mut self, f: String) {
-        if let Some(cur) = &self.current_audio {
-            if f != *cur {
-                self.stop();
-                self.sink =
-                    Sink::try_new(&self._stream_handle).expect("Can not init Sink and PlayError");
-                self.current_audio = Some(f.clone());
-                self._play(f);
-            } else {
-                self.current_audio = Some(f.clone());
-                self._play(f);
-            }
-        } else {
-            self.current_audio = Some(f.clone());
-            self._play(f);
-        }
+    pub fn play(&mut self) {
+        self.sink.play();
     }
-    fn _play(&mut self, f: String) {
+    pub fn tick(&mut self) {
+        match self.loop_mode {
+            LoopMode::Single => {
+                self.single_mode();
+            },
+            LoopMode::Playlist => {},
+            LoopMode::Shuffle => {}
+        }            
+        
+    }
+    fn append_source_to_sink_from_file(&mut self, f: String) {
         let file = File::open(f).expect("Can not file this file");
         let buf_reader = BufReader::new(file);
         let source = Decoder::new(buf_reader).expect("Decoder Error");
@@ -69,13 +69,31 @@ impl AudioService {
         } else {
             0
         };
-        if self.loop_single {
-            self.sink.append(source.repeat_infinite());
-        } else {
-            self.sink.append(source);
-        }
-        self.sink.play();
+        self.sink.append(source);
     }
+    fn single_mode(&mut self) {
+        if self.playlist.is_empty() {
+            return;
+        }
+        let f = self.playlist[self.current_playlist_index].clone();
+        if let Some(cur) = &self.current_audio {
+            if f != *cur {
+                self.stop();
+                self.sink = Sink::try_new(&self._stream_handle).expect("Can not init Sink and PlayError");
+                self.current_audio = Some(f.clone());
+                
+            }
+            else {
+                if self.sink.empty() {
+                    self.append_source_to_sink_from_file(f);
+                }
+            }
+        } else {
+            self.current_audio = Some(f.clone());
+            self.append_source_to_sink_from_file(f);
+        }
+    }  
+    fn play_playlist(&mut self) {}
     fn stop(&mut self) {
         self.sink.stop();
     }

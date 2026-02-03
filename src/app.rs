@@ -100,15 +100,16 @@ impl App<'_> {
         folder_state.select(Some(0));
 
         let (tx, rx) = mpsc::channel();
+        let audio_service = AudioService::new();
 
         Self {
             folder_state,
-            audio_service: AudioService::new(),
+            audio_service: audio_service,
             audio_folder: audio_folder,
             buttons: vec![],
             button_index: 0,
             focus: Focus::FolderList,
-            tick_rate: Duration::from_millis(200),
+            tick_rate: Duration::from_millis(100),
             should_quit: false,
             text: TextInput::new(),
             ytb_facade: ytb_facade,
@@ -123,9 +124,11 @@ impl App<'_> {
     }
     pub fn load_folder(&mut self) {
         self.audio_folder.load_mp3_file();
+        self.audio_service.playlist = self.audio_folder.files.clone();
     }
     pub fn toggle_mode(&mut self) {
         self.loop_mode = self.loop_mode.next();
+        self.audio_service.loop_mode = self.loop_mode;
     }
     pub fn poll_msg(&mut self) {
         while let Ok(msg) = self.rx.try_recv() {
@@ -155,6 +158,7 @@ impl App<'_> {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum LoopMode {
     Single,
     Playlist,
