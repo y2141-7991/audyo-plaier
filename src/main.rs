@@ -387,7 +387,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut app = App::new();
     app.load_folder();
     while !app.should_quit {
-        app.audio_service.tick();
+        app.audio_tick();
         terminal.draw(|f| {
             app.render_main_page(f);
         })?;

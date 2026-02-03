@@ -106,19 +106,6 @@ impl App<'_> {
                             match self.button_index {
                                 3 => {
                                     self.audio_service.current_playlist_index = i;
-                                    // if self.audio_service.audio_event == AudioEvent::Play {
-                                    //     if self.audio_service.current_audio
-                                    //         != Some(self.audio_folder.files[i].clone())
-                                    //     {
-                                    //         self.audio_service.play();
-                                    //     } else {
-                                    //         self.audio_service.audio_event = AudioEvent::Pause;
-                                    //         self.audio_service.pause();
-                                    //     }
-                                    // } else if self.audio_service.audio_event == AudioEvent::Pause {
-                                    //     self.audio_service.audio_event = AudioEvent::Play;
-                                    //     self.audio_service.play();
-                                    // }
                                     match self.audio_service.audio_event {
                                         AudioEvent::Pause => {
                                             self.audio_service.audio_event = AudioEvent::Play;

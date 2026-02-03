@@ -156,6 +156,9 @@ impl App<'_> {
         self.audio_service.decrease_vol();
         self.last_toggle_volume = Instant::now();
     }
+    pub fn audio_tick(&mut self) {
+        self.audio_service.tick();
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]

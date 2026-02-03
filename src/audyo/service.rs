@@ -4,7 +4,6 @@ use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 
 use crate::app::LoopMode;
 
-
 pub struct AudioService {
     _stream: OutputStream,
     _stream_handle: OutputStreamHandle,
@@ -54,11 +53,12 @@ impl AudioService {
         match self.loop_mode {
             LoopMode::Single => {
                 self.single_mode();
-            },
-            LoopMode::Playlist => {},
+            }
+            LoopMode::Playlist => {
+                self.playlist_mode();
+            }
             LoopMode::Shuffle => {}
-        }            
-        
+        }
     }
     fn append_source_to_sink_from_file(&mut self, f: String) {
         let file = File::open(f).expect("Can not file this file");
@@ -79,11 +79,11 @@ impl AudioService {
         if let Some(cur) = &self.current_audio {
             if f != *cur {
                 self.stop();
-                self.sink = Sink::try_new(&self._stream_handle).expect("Can not init Sink and PlayError");
+                self.sink =
+                    Sink::try_new(&self._stream_handle).expect("Can not init Sink and PlayError");
                 self.current_audio = Some(f.clone());
                 self.append_source_to_sink_from_file(f);
-            }
-            else {
+            } else {
                 if self.sink.len() < 1 {
                     self.append_source_to_sink_from_file(f);
                 }
@@ -92,29 +92,25 @@ impl AudioService {
             self.current_audio = Some(f.clone());
             self.append_source_to_sink_from_file(f);
         }
-    }  
+    }
     fn playlist_mode(&mut self) {
         if self.playlist.is_empty() {
             return;
         }
-        let f = self.playlist[self.current_playlist_index].clone();
-        if let Some(cur) = &self.current_audio {
-            
-        } else {
+        
+        if self.sink.len() < 1 {
+            if self.current_playlist_index == self.playlist.len() - 1 {
+                self.current_playlist_index = 0;
+            } else {
+                self.current_playlist_index += 1;
+            }
+            let f = self.playlist[self.current_playlist_index].clone();
             self.current_audio = Some(f.clone());
             self.append_source_to_sink_from_file(f);
-        }
-
-
-        if self.current_playlist_index == self.playlist.len() - 1{
-           self.current_playlist_index = 0;
-        } else {
-            self.current_playlist_index += 1;
+            
         }
     }
-    fn shuffle_mode(&mut self) {
-
-    }
+    fn shuffle_mode(&mut self) {}
     fn stop(&mut self) {
         self.sink.stop();
     }
