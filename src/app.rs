@@ -24,6 +24,7 @@ pub struct App<'a> {
     pub tx: mpsc::Sender<SignalMessage>,
     rx: mpsc::Receiver<SignalMessage>,
     pub show_help: bool,
+    pub sparkline_points: Signal<RandomSignal>
 }
 
 pub struct TextInput {
@@ -102,6 +103,9 @@ impl App<'_> {
         let (tx, rx) = mpsc::channel();
         let audio_service = AudioService::new();
 
+        let mut rand_signal = RandomSignal::new(0, 100);
+        let sparkline_points = rand_signal.by_ref().take(500).collect::<Vec<_>>();
+
         Self {
             folder_state,
             audio_service: audio_service,
@@ -120,6 +124,11 @@ impl App<'_> {
             tx: tx,
             rx: rx,
             show_help: false,
+            sparkline_points: Signal {
+                source: rand_signal,
+                points: sparkline_points,
+                tick_rate: 120
+            }
         }
     }
     pub fn load_folder(&mut self) {
@@ -158,6 +167,7 @@ impl App<'_> {
         self.last_toggle_volume = Instant::now();
     }
     pub fn audio_tick(&mut self) {
+        self.sparkline_points.on_tick();
         match self.loop_mode {
             LoopMode::Single => {
                 self.audio_service.single_mode();
@@ -261,8 +271,39 @@ impl PartialEq for MuteSound {
 }
 
 pub enum SignalMessage {
-    // Downloading,
     Downloaded,
     UpdateIndex(usize),
-    // Reloading
+}
+
+pub struct Signal<I: Iterator> {
+    source: I,
+    pub points: Vec<I::Item>,
+    tick_rate: usize
+}
+impl<I> Signal<I> where I: Iterator {
+    fn on_tick(&mut self) {
+        self.points.drain(0..self.tick_rate);
+        self.points.extend(self.source.by_ref().take(self.tick_rate));
+    }
+}
+
+#[derive(Clone)]
+pub struct RandomSignal {
+    distribution: rand::distr::Uniform<u64>,
+    rng: rand::rngs::ThreadRng,
+}
+impl RandomSignal {
+    pub fn new(lower: u64, upper: u64) -> Self {
+        Self {
+            distribution: rand::distr::Uniform::new(lower, upper).expect("invalid range"),
+            rng: rand::rng(),
+        }
+    }
+}
+impl Iterator for RandomSignal {
+    type Item = u64;
+    fn next(&mut self) -> Option<u64> {
+        use rand::distr::Distribution;
+        Some(self.distribution.sample(&mut self.rng))
+    }
 }

@@ -157,7 +157,7 @@ impl App<'_> {
         let sparkline = Sparkline::default()
             .block(Block::default())
             .style(Style::default().fg(Color::Green))
-            .data(vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 01, 3, 4, 5, 2, 6])
+            .data(&self.sparkline_points.points)
             .bar_set(NINE_LEVELS);
         frame.render_widget(sparkline, area);
     }
