@@ -134,6 +134,7 @@ impl App<'_> {
         while let Ok(msg) = self.rx.try_recv() {
             match msg {
                 SignalMessage::Downloaded => self.load_folder(),
+                SignalMessage::UpdateIndex(index) => self.folder_state.select(Some(index)),
             }
         }
     }
@@ -157,7 +158,17 @@ impl App<'_> {
         self.last_toggle_volume = Instant::now();
     }
     pub fn audio_tick(&mut self) {
-        self.audio_service.tick();
+        match self.loop_mode {
+            LoopMode::Single => {
+                self.audio_service.single_mode();
+            }
+            LoopMode::Playlist | LoopMode::Shuffle => {
+                let updated_idx = self.audio_service.playlist_mode();
+                if let Some(idx) = updated_idx {
+                    let _ = self.tx.send(SignalMessage::UpdateIndex(idx));
+                }
+            }
+        }
     }
 }
 
@@ -252,5 +263,6 @@ impl PartialEq for MuteSound {
 pub enum SignalMessage {
     // Downloading,
     Downloaded,
+    UpdateIndex(usize),
     // Reloading
 }

@@ -1,5 +1,6 @@
 use std::{fs::File, io::BufReader, time::Duration};
 
+use rand::Rng;
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 
 use crate::app::LoopMode;
@@ -49,17 +50,6 @@ impl AudioService {
     pub fn play(&mut self) {
         self.sink.play();
     }
-    pub fn tick(&mut self) {
-        match self.loop_mode {
-            LoopMode::Single => {
-                self.single_mode();
-            }
-            LoopMode::Playlist => {
-                self.playlist_mode();
-            }
-            LoopMode::Shuffle => {}
-        }
-    }
     fn append_source_to_sink_from_file(&mut self, f: String) {
         let file = File::open(f).expect("Can not file this file");
         let buf_reader = BufReader::new(file);
@@ -71,7 +61,7 @@ impl AudioService {
         };
         self.sink.append(source);
     }
-    fn single_mode(&mut self) {
+    pub fn single_mode(&mut self) {
         if self.playlist.is_empty() {
             return;
         }
@@ -93,24 +83,47 @@ impl AudioService {
             self.append_source_to_sink_from_file(f);
         }
     }
-    fn playlist_mode(&mut self) {
+    pub fn playlist_mode(&mut self) -> Option<usize> {
         if self.playlist.is_empty() {
-            return;
+            return None;
         }
-        
         if self.sink.len() < 1 {
+            self.change_track_index();
+            let f = self.playlist[self.current_playlist_index].clone();
+            self.current_audio = Some(f.clone());
+            self.append_source_to_sink_from_file(f);
+            return Some(self.current_playlist_index);
+        } else if self.sink.len() >= 1 {
+            let f = self.playlist[self.current_playlist_index].clone();
+            if let Some(cur) = &self.current_audio {
+                if f != *cur {
+                    self.stop();
+                    self.sink = Sink::try_new(&self._stream_handle)
+                        .expect("Can not init Sink and PlayError");
+                    self.current_audio = Some(f.clone());
+                    self.append_source_to_sink_from_file(f);
+                }
+            }
+        }
+        return None;
+    }
+    fn change_track_index(&mut self) {
+        if self.loop_mode == LoopMode::Playlist {
             if self.current_playlist_index == self.playlist.len() - 1 {
                 self.current_playlist_index = 0;
             } else {
                 self.current_playlist_index += 1;
             }
-            let f = self.playlist[self.current_playlist_index].clone();
-            self.current_audio = Some(f.clone());
-            self.append_source_to_sink_from_file(f);
-            
+        } else if self.loop_mode == LoopMode::Shuffle {
+            loop {
+                let new_idx = rand::rng().random_range(0..self.playlist.len());
+                if new_idx != self.current_playlist_index {
+                    self.current_playlist_index = new_idx;
+                    break;
+                }
+            }
         }
     }
-    fn shuffle_mode(&mut self) {}
     fn stop(&mut self) {
         self.sink.stop();
     }
