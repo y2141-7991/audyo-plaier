@@ -105,7 +105,6 @@ impl App<'_> {
                         if let Some(i) = self.folder_state.selected() {
                             match self.button_index {
                                 3 => {
-                                    self.audio_service.current_playlist_index = i;
                                     match self.audio_service.audio_event {
                                         AudioEvent::Pause => {
                                             self.audio_service.audio_event = AudioEvent::Play;
@@ -116,6 +115,7 @@ impl App<'_> {
                                             self.audio_service.pause();
                                         }
                                     }
+                                    self.audio_service.current_playlist_index = i;
                                 }
                                 4 => {
                                     let next_audio = if i == self.audio_folder.files.len() - 1 {

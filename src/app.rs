@@ -2,6 +2,8 @@ use ratatui::widgets::ListState;
 use std::time::Duration;
 use std::{sync::mpsc, time::Instant};
 
+use crate::audyo::service::AudioEvent;
+use crate::ui::donut::Donut;
 use crate::{AudioFolder, AudioService, Focus, downloader::facade::YoutubeFacade};
 
 pub struct App<'a> {
@@ -24,7 +26,8 @@ pub struct App<'a> {
     pub tx: mpsc::Sender<SignalMessage>,
     rx: mpsc::Receiver<SignalMessage>,
     pub show_help: bool,
-    pub sparkline_points: Signal<RandomSignal>
+    pub sparkline_points: Signal<RandomSignal>,
+    pub donut: Donut,
 }
 
 pub struct TextInput {
@@ -103,8 +106,8 @@ impl App<'_> {
         let (tx, rx) = mpsc::channel();
         let audio_service = AudioService::new();
 
-        let mut rand_signal = RandomSignal::new(0, 100);
-        let sparkline_points = rand_signal.by_ref().take(500).collect::<Vec<_>>();
+        let mut vec_signal = RandomSignal::new(0, 100);
+        let sparkline_points = vec_signal.by_ref().take(200).collect::<Vec<_>>();
 
         Self {
             folder_state,
@@ -113,7 +116,7 @@ impl App<'_> {
             buttons: vec![],
             button_index: 0,
             focus: Focus::FolderList,
-            tick_rate: Duration::from_millis(100),
+            tick_rate: Duration::from_millis(80),
             should_quit: false,
             text: TextInput::new(),
             ytb_facade: ytb_facade,
@@ -125,10 +128,11 @@ impl App<'_> {
             rx: rx,
             show_help: false,
             sparkline_points: Signal {
-                source: rand_signal,
+                source: vec_signal,
                 points: sparkline_points,
-                tick_rate: 120
-            }
+                tick_rate: 2,
+            },
+            donut: Donut::new(),
         }
     }
     pub fn load_folder(&mut self) {
@@ -167,7 +171,9 @@ impl App<'_> {
         self.last_toggle_volume = Instant::now();
     }
     pub fn audio_tick(&mut self) {
-        self.sparkline_points.on_tick();
+        if self.audio_service.audio_event == AudioEvent::Play {
+            self.donut.tick();
+        }
         match self.loop_mode {
             LoopMode::Single => {
                 self.audio_service.single_mode();
@@ -278,12 +284,16 @@ pub enum SignalMessage {
 pub struct Signal<I: Iterator> {
     source: I,
     pub points: Vec<I::Item>,
-    tick_rate: usize
+    tick_rate: usize,
 }
-impl<I> Signal<I> where I: Iterator {
+impl<I> Signal<I>
+where
+    I: Iterator,
+{
     fn on_tick(&mut self) {
         self.points.drain(0..self.tick_rate);
-        self.points.extend(self.source.by_ref().take(self.tick_rate));
+        self.points
+            .extend(self.source.by_ref().take(self.tick_rate));
     }
 }
 

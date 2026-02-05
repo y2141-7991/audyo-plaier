@@ -17,6 +17,7 @@ pub struct AudioService {
     pub current_volume: f32,
     pub playlist: Vec<String>,
     pub loop_mode: LoopMode,
+    pub waveform: WaveFormData,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -45,13 +46,18 @@ impl AudioService {
             current_playlist_index: 0,
             playlist: Vec::new(),
             loop_mode: LoopMode::Single,
+            waveform: WaveFormData {
+                samples: Vec::new(),
+                sample_rate: 0,
+                durations: 0,
+            },
         }
     }
     pub fn play(&mut self) {
         self.sink.play();
     }
     fn append_source_to_sink_from_file(&mut self, f: String) {
-        let file = File::open(f).expect("Can not file this file");
+        let file = File::open(&f).expect("Can not file this file");
         let buf_reader = BufReader::new(file);
         let source = Decoder::new(buf_reader).expect("Decoder Error");
         self.length = if let Some(d) = source.total_duration() {
@@ -72,6 +78,7 @@ impl AudioService {
                 self.sink =
                     Sink::try_new(&self._stream_handle).expect("Can not init Sink and PlayError");
                 self.current_audio = Some(f.clone());
+                self.audio_event = AudioEvent::Play;
                 self.append_source_to_sink_from_file(f);
             } else {
                 if self.sink.len() < 1 {
@@ -101,6 +108,7 @@ impl AudioService {
                     self.sink = Sink::try_new(&self._stream_handle)
                         .expect("Can not init Sink and PlayError");
                     self.current_audio = Some(f.clone());
+                    self.audio_event = AudioEvent::Play;
                     self.append_source_to_sink_from_file(f);
                 }
             }
@@ -172,5 +180,32 @@ impl AudioService {
     }
     pub fn get_current_position(&self) -> Duration {
         Duration::from_secs(self.sink.get_pos().as_secs() % (self.length as u64))
+    }
+}
+
+struct WaveFormData {
+    samples: Vec<f32>,
+    sample_rate: usize,
+    durations: usize,
+}
+impl WaveFormData {
+    fn from_file(path: String) -> Self {
+        let file = File::open(path).expect("Can not file this file");
+        let source = Decoder::new(file).expect("Decoder Error");
+        let sample_rate = source.sample_rate() as usize;
+        let channels = source.channels() as usize;
+
+        let samples: Vec<f32> = source
+            .map(|s| (s as f32 / i16::MAX as f32).abs())
+            .collect::<Vec<f32>>()
+            .chunks(channels)
+            .map(|ch| ch.iter().sum::<f32>() / channels as f32)
+            .collect();
+        let durations = samples.len() / sample_rate;
+        Self {
+            samples,
+            sample_rate,
+            durations,
+        }
     }
 }

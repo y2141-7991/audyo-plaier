@@ -26,23 +26,14 @@ use audyo::service::AudioService;
 mod app;
 use app::App;
 
+use crate::audyo::service::AudioEvent;
+
 mod downloader;
 mod events;
+mod ui;
 
 const CUSTOM_LABEL_COLOR: Color = tailwind::WHITE;
 const GAUGE3_COLOR: Color = tailwind::GRAY.c800;
-
-// struct Buttons {
-//     states: ButtonStates,
-// }
-
-// enum ButtonStates {
-//     PlayOrPause,
-//     SpeedUp,
-//     SpeedDown,
-//     Forward,
-//     Backward,
-// }
 
 #[derive(Debug, Clone)]
 struct AudioFolder {
@@ -132,7 +123,7 @@ impl<'a> App<'a> {
 impl App<'_> {
     fn render_main_page(&mut self, frame: &mut ratatui::Frame) {
         let horizontal =
-            Layout::horizontal([Constraint::Percentage(40), Constraint::Percentage(60)])
+            Layout::horizontal([Constraint::Percentage(25), Constraint::Percentage(75)])
                 .split(frame.area());
         self.render_list_files(frame, horizontal[0]);
 
@@ -143,7 +134,7 @@ impl App<'_> {
         ])
         .split(horizontal[1]);
 
-        self.render_waveform(frame, vertical[0]);
+        self.render_donut(frame, vertical[0]);
         self.render_progress_bar(frame, vertical[1]);
         self.render_button(frame, vertical[2]);
         if self.focus == Focus::Popup {
@@ -153,13 +144,23 @@ impl App<'_> {
             self.render_help_popup(frame);
         }
     }
-    fn render_waveform(&mut self, frame: &mut ratatui::Frame, area: Rect) {
-        let sparkline = Sparkline::default()
-            .block(Block::default())
-            .style(Style::default().fg(Color::Green))
-            .data(&self.sparkline_points.points)
-            .bar_set(NINE_LEVELS);
-        frame.render_widget(sparkline, area);
+    fn render_donut(&mut self, frame: &mut ratatui::Frame, area: Rect) {
+        let track = if let Some(extract_track_name) = &self.audio_service.current_audio {
+            let split_str = extract_track_name.split("/").collect::<Vec<_>>();
+            split_str[split_str.len() - 1]
+        } else {
+            ""
+        };
+        let status = match self.audio_service.audio_event {
+            AudioEvent::Pause => "◼ Paused",
+            AudioEvent::Play => "▶ Now playing",
+        };
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .title(format!(" {}: {}", status, track));
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+        frame.render_widget(&self.donut, inner);
     }
     fn render_list_files(&mut self, frame: &mut ratatui::Frame, area: Rect) {
         let folder_items: Vec<_> = self
@@ -291,8 +292,12 @@ impl App<'_> {
             )]),
             Line::from(vec![
                 Span::styled("    Space  ", Style::default().fg(Color::Cyan)),
-                Span::raw("Activate button"),
+                Span::raw("Activate button, change mode"),
             ]),
+            Line::from(vec![
+                Span::styled("    ↑/↓    ", Style::default().fg(Color::Cyan)),
+                Span::raw("Up down volume of second button"),
+            ]), 
             Line::from(""),
             Line::from(vec![Span::styled(
                 "  DOWNLOAD",
