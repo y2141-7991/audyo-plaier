@@ -11,8 +11,9 @@ use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style, palette::tailwind},
+    symbols::bar::NINE_LEVELS,
     text::Span,
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, List, ListItem, Paragraph, Sparkline},
 };
 use ratatui::{
     text::Line,
@@ -25,23 +26,14 @@ use audyo::service::AudioService;
 mod app;
 use app::App;
 
+use crate::audyo::service::AudioEvent;
+
 mod downloader;
 mod events;
+mod ui;
 
 const CUSTOM_LABEL_COLOR: Color = tailwind::WHITE;
 const GAUGE3_COLOR: Color = tailwind::GRAY.c800;
-
-// struct Buttons {
-//     states: ButtonStates,
-// }
-
-// enum ButtonStates {
-//     PlayOrPause,
-//     SpeedUp,
-//     SpeedDown,
-//     Forward,
-//     Backward,
-// }
 
 #[derive(Debug, Clone)]
 struct AudioFolder {
@@ -131,7 +123,7 @@ impl<'a> App<'a> {
 impl App<'_> {
     fn render_main_page(&mut self, frame: &mut ratatui::Frame) {
         let horizontal =
-            Layout::horizontal([Constraint::Percentage(40), Constraint::Percentage(60)])
+            Layout::horizontal([Constraint::Percentage(25), Constraint::Percentage(75)])
                 .split(frame.area());
         self.render_list_files(frame, horizontal[0]);
 
@@ -142,6 +134,7 @@ impl App<'_> {
         ])
         .split(horizontal[1]);
 
+        self.render_donut(frame, vertical[0]);
         self.render_progress_bar(frame, vertical[1]);
         self.render_button(frame, vertical[2]);
         if self.focus == Focus::Popup {
@@ -151,7 +144,24 @@ impl App<'_> {
             self.render_help_popup(frame);
         }
     }
-
+    fn render_donut(&mut self, frame: &mut ratatui::Frame, area: Rect) {
+        let track = if let Some(extract_track_name) = &self.audio_service.current_audio {
+            let split_str = extract_track_name.split("/").collect::<Vec<_>>();
+            split_str[split_str.len() - 1]
+        } else {
+            ""
+        };
+        let status = match self.audio_service.audio_event {
+            AudioEvent::Pause => "◼ Paused",
+            AudioEvent::Play => "▶ Now playing",
+        };
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .title(format!(" {}: {}", status, track));
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+        frame.render_widget(&self.donut, inner);
+    }
     fn render_list_files(&mut self, frame: &mut ratatui::Frame, area: Rect) {
         let folder_items: Vec<_> = self
             .audio_folder
@@ -175,7 +185,14 @@ impl App<'_> {
     }
 
     fn render_button(&mut self, frame: &mut ratatui::Frame, area: Rect) {
-        self.buttons = vec!["-5s↩", "+↪5s", "◀◀", "⏯️", "▶▶", self.loop_mode.text()];
+        self.buttons = vec![
+            self.mute_sound.text(),
+            self.volume.text(),
+            "⏮️",
+            "⏯️",
+            "⏭️",
+            self.loop_mode.text(),
+        ];
         let button_chunks = Layout::horizontal([Constraint::Percentage(20); 6]).split(area);
 
         for (i, button) in self.buttons.iter().enumerate() {
@@ -183,7 +200,7 @@ impl App<'_> {
             let style = if is_selected {
                 Style::default()
                     .fg(Color::Black)
-                    .bg(Color::Green)
+                    .bg(tailwind::CYAN.c100)
                     .add_modifier(Modifier::BOLD)
             } else {
                 Style::default()
@@ -275,8 +292,12 @@ impl App<'_> {
             )]),
             Line::from(vec![
                 Span::styled("    Space  ", Style::default().fg(Color::Cyan)),
-                Span::raw("Activate button"),
+                Span::raw("Activate button, change mode"),
             ]),
+            Line::from(vec![
+                Span::styled("    ↑/↓    ", Style::default().fg(Color::Cyan)),
+                Span::raw("Up down volume of second button"),
+            ]), 
             Line::from(""),
             Line::from(vec![Span::styled(
                 "  DOWNLOAD",
@@ -371,6 +392,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut app = App::new();
     app.load_folder();
     while !app.should_quit {
+        app.audio_tick();
         terminal.draw(|f| {
             app.render_main_page(f);
         })?;
