@@ -57,9 +57,13 @@ impl AudioService {
         self.sink.play();
     }
     fn append_source_to_sink_from_file(&mut self, f: String) {
-        let file = File::open(&f).expect("Can not file this file");
+        let Ok(file) = File::open(&f) else {
+            return;
+        };
         let buf_reader = BufReader::new(file);
-        let source = Decoder::new(buf_reader).expect("Decoder Error");
+        let Ok(source) = Decoder::new(buf_reader) else {
+            return;
+        };
         self.length = if let Some(d) = source.total_duration() {
             d.as_secs() as usize
         } else {

@@ -58,7 +58,8 @@ pub struct Downloader {
 impl Downloader {
     pub fn new() -> Self {
         let client = Client::builder()
-            .timeout(std::time::Duration::from_secs(30))
+            .connect_timeout(std::time::Duration::from_secs(15))
+            .timeout(std::time::Duration::from_secs(600))
             .build()
             .expect("Failed to build HTTP client");
         let download_config = DownloaderConfig::default();
@@ -92,8 +93,21 @@ impl Downloader {
         let response = self.client.get(url).headers(headers).send().await?;
 
         response.error_for_status_ref()?;
-        let mut file = File::create(output_path).await?;
 
+        let result = Self::write_response_to_file(response, output_path).await;
+        if result.is_err() {
+            let _ = tokio::fs::remove_file(output_path).await;
+        }
+        result?;
+
+        Ok(output_path.to_path_buf())
+    }
+
+    async fn write_response_to_file(
+        response: reqwest::Response,
+        output_path: &Path,
+    ) -> Result<()> {
+        let mut file = File::create(output_path).await?;
         let mut stream = response.bytes_stream();
 
         while let Some(chunk) = stream.next().await {
@@ -101,8 +115,7 @@ impl Downloader {
             file.write_all(&chunk).await?;
         }
         file.flush().await?;
-
-        Ok(output_path.to_path_buf())
+        Ok(())
     }
 }
 

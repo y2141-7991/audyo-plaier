@@ -36,8 +36,8 @@ impl AndroidClient {
         Self {
             client_config: ClientConfig {
                 client_name: "ANDROID".to_string(),
-                client_version: "19.01.34".to_string(),
-                user_agent: "com.google.android.youtube/19.01.34 (Linux; Android 13)".to_string(),
+                client_version: "20.10.38".to_string(),
+                user_agent: "com.google.android.youtube/20.10.38 (Linux; Android 13)".to_string(),
                 language: "en".to_string(),
                 country: "US".to_string(),
                 extra_config: json!({
@@ -181,6 +181,9 @@ impl YoutubeClient {
         if let Some(regular) = streaming.formats {
             formats.extend(regular);
         }
+        if let Some(adaptive) = streaming.adaptive_formats {
+            formats.extend(adaptive);
+        }
         Ok(VideoInfo {
             video_id: details.video_id,
             title: details.title,
@@ -240,6 +243,7 @@ struct VideoDetails {
 #[serde(rename_all = "camelCase")]
 struct StreamingData {
     formats: Option<Vec<FormatResponse>>,
+    adaptive_formats: Option<Vec<FormatResponse>>,
     expires_in_seconds: String,
 }
 
@@ -254,8 +258,29 @@ pub struct FormatResponse {
     audio_sample_rate: Option<String>,
     average_bitrate: Option<u32>,
     bitrate: Option<u32>,
-    mime_type: Option<String>,
+    pub mime_type: Option<String>,
     quality: Option<String>,
+}
+
+impl FormatResponse {
+    pub fn is_audio(&self) -> bool {
+        self.mime_type
+            .as_deref()
+            .is_some_and(|m| m.starts_with("audio/"))
+    }
+
+    /// Muxed, non-fragmented `video/mp4` stream carrying an AAC audio track.
+    /// Unlike YouTube's adaptive audio-only streams (served as fragmented MP4,
+    /// which symphonia's isomp4 demuxer fails to decode), these decode reliably.
+    pub fn is_progressive_audio(&self) -> bool {
+        self.mime_type
+            .as_deref()
+            .is_some_and(|m| m.starts_with("video/") && m.contains("mp4a"))
+    }
+
+    pub fn bitrate(&self) -> u32 {
+        self.average_bitrate.or(self.bitrate).unwrap_or(0)
+    }
 }
 
 #[derive(Error, Debug)]

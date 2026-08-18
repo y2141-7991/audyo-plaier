@@ -167,7 +167,13 @@ impl App<'_> {
             .audio_folder
             .files
             .iter()
-            .map(|f| ListItem::new(f.clone()))
+            .map(|f| {
+                let name = std::path::Path::new(f)
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| f.clone());
+                ListItem::new(name)
+            })
             .collect();
 
         let block = Block::default()
